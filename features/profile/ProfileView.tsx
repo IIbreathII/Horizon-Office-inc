@@ -37,13 +37,13 @@ export function ProfileView() {
           />
           <div className="min-w-0 flex-1">
             <p className={`text-sm font-semibold ${ACCENT_TEXT}`}>{levelTitle(me.level)}</p>
-            <h2 className={`mt-1 truncate text-2xl font-semibold tracking-tight text-[#f6f1e7] sm:text-3xl ${DISPLAY}`}>{me.username}</h2>
+            <h2 className={`mt-1 truncate text-2xl font-semibold tracking-tight text-white sm:text-3xl ${DISPLAY}`}>{me.username}</h2>
             <p className={`mt-1 truncate text-sm ${FAINT}`}>{me.email}</p>
           </div>
           <ul className="grid w-full grid-cols-3 gap-2 sm:w-auto">
             <Stat icon="xp" label="Досвід" value={me.xp} className={XP_TEXT} />
             <Stat icon="coin" label="Монети" value={me.balance} className={COIN_TEXT} />
-            <Stat icon="trophy" label="Квестів" value={completed?.length ?? '…'} className="text-slate-100" />
+            <Stat icon="trophy" label="Квестів" value={completed?.length ?? '…'} className="text-neutral-100" />
           </ul>
         </div>
 
@@ -73,7 +73,7 @@ export function ProfileView() {
                     {item.partnerName}, {formatDate(item.claimedAt)}
                   </p>
                 </div>
-                <code className={`rounded-lg border border-[#d9bf8c]/30 bg-[#0c1a2e]/50 px-2.5 py-1 font-mono text-sm tracking-wider ${COIN_TEXT}`}>{item.promoCode}</code>
+                <code className={`rounded-lg border border-[#fbbf24]/30 bg-black/50 px-2.5 py-1 font-mono text-sm tracking-wider ${COIN_TEXT}`}>{item.promoCode}</code>
                 <CopyButton text={item.promoCode} />
               </li>
             ))}
@@ -96,7 +96,7 @@ export function ProfileView() {
                   <span className="flex size-8 shrink-0 items-center justify-center rounded-lg" style={tileStyle(category.color)} title={category.label}>
                     <Icon src={category.icon} className="size-4" />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{quest.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-neutral-100">{quest.title}</span>
                   <span className={`flex items-center gap-1 text-sm font-semibold ${XP_TEXT}`}>
                     <LineIcon name="xp" className="size-3.5" />+{quest.xpReward}
                   </span>
@@ -112,7 +112,7 @@ export function ProfileView() {
 
 function SectionTitle({ icon, title, count }: { icon: LineIconName; title: string; count?: number }) {
   return (
-    <h2 className="flex items-center gap-2.5 border-b border-white/[0.06] px-5 py-4 text-base font-semibold text-[#f6f1e7]">
+    <h2 className="flex items-center gap-2.5 border-b border-white/[0.06] px-5 py-4 text-base font-semibold text-white">
       <LineIcon name={icon} className={`size-4 ${ACCENT_TEXT}`} />
       <span className={DISPLAY}>{title}</span>
       {count !== undefined && <span className={`ml-auto rounded-md bg-white/[0.06] px-1.5 text-xs leading-5 tabular-nums ${MUTED}`}>{count}</span>}

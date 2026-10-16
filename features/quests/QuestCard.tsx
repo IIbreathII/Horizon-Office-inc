@@ -62,11 +62,11 @@ export function QuestCard({ quest }: { quest: Quest }) {
       </div>
 
       <div className="min-w-0">
-        <h3 className={`line-clamp-2 text-lg leading-snug font-semibold text-[#f6f1e7] ${DISPLAY}`}>{quest.title}</h3>
+        <h3 className={`line-clamp-2 text-lg leading-snug font-semibold text-white ${DISPLAY}`}>{quest.title}</h3>
         <p className={`mt-1 truncate text-xs ${FAINT}`}>{quest.organization.name}</p>
       </div>
 
-      <ul className="flex flex-col gap-2 text-sm text-slate-200">
+      <ul className="flex flex-col gap-2 text-sm text-neutral-200">
         <Meta icon="pin">{quest.address}</Meta>
         <Meta icon="calendar">
           <span className="inline-block first-letter:uppercase">{formatDateTime(quest.startsAt)}</span>
@@ -105,7 +105,7 @@ export function QuestCard({ quest }: { quest: Quest }) {
 function Meta({ icon, children }: { icon: 'pin' | 'calendar' | 'clock'; children: React.ReactNode }) {
   return (
     <li className="flex min-w-0 items-center gap-2.5">
-      <LineIcon name={icon} className="size-4 text-slate-400" />
+      <LineIcon name={icon} className="size-4 text-neutral-400" />
       <span className="min-w-0 truncate">{children}</span>
     </li>
   );

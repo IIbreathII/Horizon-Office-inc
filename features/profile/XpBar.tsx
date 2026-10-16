@@ -83,8 +83,8 @@ export function XpBar({ userId, level, current, required }: XpBarProps) {
         <div
           className={`h-full rounded-full transition-[width] duration-700 ${
             levelUp
-              ? 'bg-[#e8c77f]'
-              : 'bg-linear-to-r from-[#f1ece2] to-[#d9bf8c]'
+              ? 'bg-[#fcd34d]'
+              : 'bg-linear-to-r from-amber-200 to-amber-400'
           }`}
           style={{ width: `${levelUp ? 100 : percent}%` }}
         />
@@ -101,19 +101,19 @@ function LevelUpWindow({ level }: { level: number }) {
   return (
     <SystemPanel
       role="status"
-      className={`fixed! top-8 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 bg-[#132643]/90! px-6 py-4 motion-safe:transition motion-safe:duration-300 motion-safe:ease-out motion-safe:starting:-translate-y-6 motion-safe:starting:opacity-0`}
+      className={`fixed! top-8 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 bg-[#111113]/95! px-6 py-4 motion-safe:transition motion-safe:duration-300 motion-safe:ease-out motion-safe:starting:-translate-y-6 motion-safe:starting:opacity-0`}
     >
       <span
-        className={`flex size-14 items-center justify-center rounded-full text-2xl font-semibold text-[#f6f1e7] ${DISPLAY}`}
+        className={`flex size-14 items-center justify-center rounded-full text-2xl font-semibold text-white ${DISPLAY}`}
         style={{ border: `1px solid ${color}`, backgroundColor: `${color}1f` }}
       >
         {level}
       </span>
       <span className="text-left">
-        <span className="flex items-center gap-1.5 text-sm font-semibold text-[#e7d3aa]">
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-amber-300">
           <LineIcon name="sparkle" className="size-4" /> Новий рівень!
         </span>
-        <span className={`block text-lg font-semibold text-[#f6f1e7] ${DISPLAY}`}>{levelTitle(level)}</span>
+        <span className={`block text-lg font-semibold text-white ${DISPLAY}`}>{levelTitle(level)}</span>
       </span>
     </SystemPanel>
   );

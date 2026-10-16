@@ -19,10 +19,11 @@ export function VolunteerNav() {
   const pathname = usePathname();
   const { data: me } = useMe();
 
+  // brighter outline than the shared GLASS ring, so the rail stands out on dark pages
   return (
     <nav
       aria-label="Головне меню"
-      className={`fixed top-1/2 left-3 z-40 flex -translate-y-1/2 flex-col items-center gap-1 rounded-full p-1.5 ${GLASS}`}
+      className={`fixed top-1/2 left-3 z-40 flex -translate-y-1/2 flex-col items-center gap-1 rounded-full p-1.5 ${GLASS} ring-1! ring-white/50! shadow-[0_0_20px_-6px_rgba(255,255,255,0.45)]!`}
     >
       {LINKS.map((link) => {
         const active = pathname.startsWith(link.href);

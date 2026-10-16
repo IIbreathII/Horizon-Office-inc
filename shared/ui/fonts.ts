@@ -1,11 +1,7 @@
-import { Manrope, Onest } from 'next/font/google';
+// The volunteer pages use the site-wide Onest (loaded in app/layout.tsx as --font-onest), like the map.
 
-// Fonts for the volunteer pages (not the map). Both include Cyrillic, which the UI copy needs.
-const display = Onest({ subsets: ['latin', 'cyrillic'], variable: '--font-display', display: 'swap' });
-const body = Manrope({ subsets: ['latin', 'cyrillic'], variable: '--font-body', display: 'swap' });
+/** Put on the page root: sets the page font. */
+export const FONT_VARIABLES = 'font-(family-name:--font-onest)';
 
-/** Put on the page root: defines the font variables and sets the body font. */
-export const FONT_VARIABLES = `${display.variable} ${body.variable} font-(family-name:--font-body)`;
-
-/** Display face for headings and numbers. */
-export const DISPLAY = 'font-(family-name:--font-display)';
+/** Face for headings and numbers. */
+export const DISPLAY = 'font-(family-name:--font-onest)';

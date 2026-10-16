@@ -3,10 +3,10 @@
 export type Rarity = { label: string; color: string };
 
 const RARITIES: { minCost: number; rarity: Rarity }[] = [
-  { minCost: 300, rarity: { label: 'Легендарна', color: '#fbbf24' } },
-  { minCost: 200, rarity: { label: 'Епічна', color: '#818cf8' } },
-  { minCost: 100, rarity: { label: 'Рідкісна', color: '#38bdf8' } },
-  { minCost: 0, rarity: { label: 'Звичайна', color: '#5eead4' } },
+  { minCost: 300, rarity: { label: 'Легендарна', color: '#f59e0b' } },
+  { minCost: 200, rarity: { label: 'Епічна', color: '#a78bfa' } },
+  { minCost: 100, rarity: { label: 'Рідкісна', color: '#0ea5e9' } },
+  { minCost: 0, rarity: { label: 'Звичайна', color: '#2dd4bf' } },
 ];
 
 export function rewardRarity(cost: number): Rarity {

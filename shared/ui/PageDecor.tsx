@@ -4,7 +4,7 @@ import { LineIcon, type LineIconName } from './LineIcon';
 // topographic contours, drifting icons and rising rewards. Purely decorative, sits behind the content.
 // All motion stops with prefers-reduced-motion.
 
-const GOLD = '#d9bf8c';
+const GOLD = '#fbbf24';
 
 // Keyframes live here: globals.css is shared with the map.
 const KEYFRAMES = `
@@ -75,7 +75,7 @@ export function PageDecor() {
       {FLOATERS.map((f) => (
         <span
           key={`${f.icon}-${f.top}-${f.left}`}
-          className={`absolute ${f.mobile ? '' : 'hidden lg:block'} ${f.gold ? 'text-[#d9bf8c]/[0.16]' : 'text-white/[0.08]'} ${
+          className={`absolute ${f.mobile ? '' : 'hidden lg:block'} ${f.gold ? 'text-[#fbbf24]/[0.22]' : 'text-white/[0.11]'} ${
             f.twinkle ? 'motion-safe:animate-[decor-twinkle_4s_ease-in-out_infinite]' : 'motion-safe:animate-[decor-drift_9s_ease-in-out_infinite]'
           }`}
           style={{ top: `${f.top}%`, left: `${f.left}%`, width: f.size, height: f.size, rotate: `${f.rotate}deg`, animationDelay: `${f.delay}s`, ['--r' as string]: `${f.rotate}deg` }}
@@ -88,7 +88,7 @@ export function PageDecor() {
         <span
           key={r.text + r.left}
           className={`decor-motion-only absolute hidden items-center gap-1 text-sm font-semibold opacity-0 lg:flex motion-safe:animate-[decor-rise_8s_ease-out_infinite] ${
-            r.coin ? 'text-[#e8c77f]/40' : 'text-emerald-200/35'
+            r.coin ? 'text-[#fcd34d]/65' : 'text-emerald-400/60'
           }`}
           style={{ top: `${r.top}%`, left: `${r.left}%`, animationDelay: `${r.delay}s` }}
         >
@@ -104,7 +104,7 @@ export function PageDecor() {
 function Contours({ className, duration, reverse = false }: { className: string; duration: number; reverse?: boolean }) {
   return (
     <svg
-      className={`absolute text-white/[0.06] motion-safe:animate-[decor-spin_var(--d)_linear_infinite] ${className}`}
+      className={`absolute text-white/[0.08] motion-safe:animate-[decor-spin_var(--d)_linear_infinite] ${className}`}
       style={{ ['--d' as string]: `${duration}s`, animationDirection: reverse ? 'reverse' : 'normal' }}
       viewBox="-100 -100 200 200"
       fill="none"
@@ -139,7 +139,7 @@ function Route({ className, viewBox, d, checkpoints, finish }: RouteProps) {
       <path
         d={d}
         stroke={GOLD}
-        strokeOpacity="0.24"
+        strokeOpacity="0.38"
         strokeWidth="1.5"
         strokeDasharray="4 9"
         strokeLinecap="round"
@@ -147,8 +147,8 @@ function Route({ className, viewBox, d, checkpoints, finish }: RouteProps) {
       />
       {checkpoints.map(([cx, cy]) => (
         <g key={`${cx}-${cy}`}>
-          <circle cx={cx} cy={cy} r="7" stroke={GOLD} strokeOpacity="0.3" strokeWidth="1.2" />
-          <circle cx={cx} cy={cy} r="2.2" fill={GOLD} fillOpacity="0.4" />
+          <circle cx={cx} cy={cy} r="7" stroke={GOLD} strokeOpacity="0.45" strokeWidth="1.2" />
+          <circle cx={cx} cy={cy} r="2.2" fill={GOLD} fillOpacity="0.6" />
         </g>
       ))}
       <path
