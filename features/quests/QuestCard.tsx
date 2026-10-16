@@ -3,60 +3,130 @@
 import Link from 'next/link';
 import { CATEGORIES } from '@/shared/categories';
 import { formatDateTime, formatDuration } from '@/shared/format';
-import { ICONS } from '@/shared/icons';
 import type { Quest } from '@/shared/types';
-import { GLASS } from '@/shared/ui/glass';
+import { DISPLAY } from '@/shared/ui/fonts';
 import { Icon } from '@/shared/ui/Icon';
+import { LineIcon } from '@/shared/ui/LineIcon';
+import {
+  BUTTON_GHOST,
+  COIN_TEXT,
+  FAINT,
+  INSET,
+  PANEL,
+  PANEL_HOVER,
+  PROGRESS_FILL,
+  PROGRESS_TRACK,
+  STATUS_CHIP,
+  type StatusTone,
+  XP_TEXT,
+  tileStyle,
+} from '@/shared/ui/surface';
 
-/** Quest card in the map panel style (dark glass, category chip, rewards in color). */
+/** Above this many slots the pips get too small, so a plain bar is shown instead. */
+const MAX_PIPS = 12;
+
+function questStatus(quest: Quest): { tone: StatusTone; label: string } {
+  switch (quest.myParticipation?.status) {
+    case 'completed':
+      return { tone: 'completed', label: 'Виконано' };
+    case 'pending_review':
+      return { tone: 'joined', label: 'Очікує підтвердження' };
+    case 'in_progress':
+      return { tone: 'joined', label: 'В процесі' };
+    case 'joined':
+      return { tone: 'joined', label: 'Ви записані' };
+  }
+  if (quest.slotsTaken >= quest.slotsTotal) return { tone: 'full', label: 'Місць немає' };
+  return { tone: 'available', label: 'Доступно' };
+}
+
+/** A quest the volunteer has taken or completed (claiming happens on the map). */
 export function QuestCard({ quest }: { quest: Quest }) {
   const category = CATEGORIES[quest.category];
-  const completed = quest.myParticipation?.status === 'completed';
+  const status = questStatus(quest);
+  const onMap = quest.status === 'open' || quest.status === 'full';
 
   return (
-    <article className={`flex flex-col gap-4 rounded-2xl p-5 ${GLASS}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span
-          className="flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium"
-          style={{ backgroundColor: `${category.color}33`, color: category.color }}
-        >
-          <Icon src={category.icon} className="size-4" /> {category.label}
-        </span>
-        {completed && <span className="text-xs font-medium text-emerald-300">Виконано ✓</span>}
+    <article className={`flex flex-col gap-5 overflow-hidden p-5 ${PANEL} ${PANEL_HOVER}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {/* the category tile matches the quest's marker on the map */}
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl" style={tileStyle(category.color)}>
+            <Icon src={category.icon} className="size-5" />
+          </span>
+          <span className="truncate text-xs font-semibold" style={{ color: category.color }}>
+            {category.label}
+          </span>
+        </div>
+        <span className={STATUS_CHIP[status.tone]}>{status.label}</span>
       </div>
 
-      <div>
-        <h3 className="text-lg leading-snug font-semibold">{quest.title}</h3>
-        <p className="mt-0.5 text-xs text-white/60">{quest.organization.name}</p>
+      <div className="min-w-0">
+        <h3 className={`line-clamp-2 text-lg leading-snug font-semibold text-[#f6f1e7] ${DISPLAY}`}>{quest.title}</h3>
+        <p className={`mt-1 truncate text-xs ${FAINT}`}>{quest.organization.name}</p>
       </div>
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
-        <dt className="text-white/50">Адреса</dt>
-        <dd>{quest.address}</dd>
-        <dt className="text-white/50">Коли</dt>
-        <dd className="first-letter:uppercase">
-          {formatDateTime(quest.startsAt)} · {formatDuration(quest.durationHours)}
-        </dd>
-        <dt className="text-white/50">Нагорода</dt>
-        <dd className="flex items-center gap-1 font-medium">
-          <span className="text-emerald-300">+{quest.xpReward} XP</span>
-          <span className="ml-1 text-amber-300">+{quest.coinsReward}</span>
-          <Icon src={ICONS.coin} className="size-4" />
-        </dd>
-        <dt className="text-white/50">Місця</dt>
-        <dd>
-          {quest.slotsTaken} / {quest.slotsTotal}
-        </dd>
-      </dl>
+      <ul className="flex flex-col gap-2 text-sm text-slate-200">
+        <Meta icon="pin">{quest.address}</Meta>
+        <Meta icon="calendar">
+          <span className="inline-block first-letter:uppercase">{formatDateTime(quest.startsAt)}</span>
+        </Meta>
+        <Meta icon="clock">{formatDuration(quest.durationHours)}</Meta>
+      </ul>
 
-      {quest.status !== 'finished' && (
-        <Link
-          href={`/map?quest=${quest.id}`}
-          className="flex items-center justify-center rounded-xl bg-[#228fff] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#4da5ff]"
-        >
+      <div className={`mt-auto flex flex-col gap-3 p-3 ${INSET}`}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-3 text-sm font-bold">
+            <span className={`flex items-center gap-1 ${XP_TEXT}`}>
+              <LineIcon name="xp" className="size-4" />+{quest.xpReward} XP
+            </span>
+            <span className={`flex items-center gap-1 ${COIN_TEXT}`}>
+              <LineIcon name="coin" className="size-4" />+{quest.coinsReward}
+            </span>
+          </span>
+          <span className={`flex items-center gap-1 text-xs tabular-nums ${FAINT}`}>
+            <LineIcon name="users" className="size-3.5" />
+            {quest.slotsTaken}/{quest.slotsTotal}
+          </span>
+        </div>
+        <Slots taken={quest.slotsTaken} total={quest.slotsTotal} />
+      </div>
+
+      {onMap && (
+        <Link href={`/map?quest=${quest.id}`} className={BUTTON_GHOST}>
+          <LineIcon name="map" className="size-4" />
           На мапі
         </Link>
       )}
     </article>
+  );
+}
+
+function Meta({ icon, children }: { icon: 'pin' | 'calendar' | 'clock'; children: React.ReactNode }) {
+  return (
+    <li className="flex min-w-0 items-center gap-2.5">
+      <LineIcon name={icon} className="size-4 text-slate-400" />
+      <span className="min-w-0 truncate">{children}</span>
+    </li>
+  );
+}
+
+/** Taken slots as lit pips (a bar when there are too many slots). */
+function Slots({ taken, total }: { taken: number; total: number }) {
+  const label = `Зайнято ${taken} з ${total} місць`;
+  if (total > MAX_PIPS) {
+    const percent = total === 0 ? 100 : Math.min(100, (taken / total) * 100);
+    return (
+      <div role="img" aria-label={label} className={`h-1.5 overflow-hidden rounded-full ${PROGRESS_TRACK}`}>
+        <div className={`h-full rounded-full ${PROGRESS_FILL}`} style={{ width: `${percent}%` }} />
+      </div>
+    );
+  }
+  return (
+    <div role="img" aria-label={label} className="flex gap-1">
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className={`h-1.5 flex-1 rounded-full ${i < taken ? PROGRESS_FILL : PROGRESS_TRACK}`} />
+      ))}
+    </div>
   );
 }
