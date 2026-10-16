@@ -10,8 +10,8 @@ export function BalancePill() {
   const { data: me } = useMe();
 
   return (
-    <p className={`flex items-center gap-3 rounded-full! border-[#d9bf8c]/30! py-2 pr-5 pl-2 ${PANEL}`}>
-      <span className={`flex size-10 items-center justify-center rounded-full border border-[#d9bf8c]/40 ${COIN_TEXT}`}>
+    <p className={`flex items-center gap-3 rounded-full! border-[#fbbf24]/30! py-2 pr-5 pl-2 ${PANEL}`}>
+      <span className={`flex size-10 items-center justify-center rounded-full border border-[#fbbf24]/40 ${COIN_TEXT}`}>
         <LineIcon name="coin" className="size-5" />
       </span>
       <span className="flex flex-col leading-tight">

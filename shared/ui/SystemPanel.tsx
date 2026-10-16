@@ -1,6 +1,6 @@
 import { PANEL } from './surface';
 
-const CORNER = 'pointer-events-none absolute size-4 border-[#d9bf8c]/70';
+const CORNER = 'pointer-events-none absolute size-4 border-[#fbbf24]/70';
 
 /**
  * Key panel with fine champagne corner marks.

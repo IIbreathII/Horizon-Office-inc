@@ -37,7 +37,7 @@ export function RewardCard({ reward, balance, onBuy }: RewardCardProps) {
 
       <div className="flex flex-1 flex-col p-5">
         <p className={`truncate text-xs ${FAINT}`}>{reward.partnerName}</p>
-        <h3 className={`mt-1 line-clamp-2 text-lg leading-snug font-semibold text-[#f6f1e7] ${DISPLAY}`}>{reward.title}</h3>
+        <h3 className={`mt-1 line-clamp-2 text-lg leading-snug font-semibold text-white ${DISPLAY}`}>{reward.title}</h3>
 
         <p className={`mt-3 flex items-center gap-1.5 text-xl font-semibold tabular-nums ${COIN_TEXT} ${DISPLAY}`}>
           <LineIcon name="coin" className="size-5" />
@@ -46,7 +46,7 @@ export function RewardCard({ reward, balance, onBuy }: RewardCardProps) {
         {missing > 0 && (
           <div className="mt-3 flex flex-col gap-1.5">
             <div className={`h-1 overflow-hidden rounded-full ${PROGRESS_TRACK}`}>
-              <div className="h-full rounded-full bg-[#e8c77f]" style={{ width: `${progress}%` }} />
+              <div className="h-full rounded-full bg-[#fcd34d]" style={{ width: `${progress}%` }} />
             </div>
             <p className={`text-xs ${FAINT}`}>Не вистачає {missing} монет</p>
           </div>

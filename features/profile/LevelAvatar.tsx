@@ -30,8 +30,8 @@ export function LevelAvatar({ name, avatarUrl, level, current, required }: Level
       <svg viewBox="0 0 160 160" aria-hidden className="absolute inset-0 -rotate-90 overflow-visible">
         <defs>
           <linearGradient id="xp-ring" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#f1ece2" />
-            <stop offset="100%" stopColor="#d9bf8c" />
+            <stop offset="0%" stopColor="#fde68a" />
+            <stop offset="100%" stopColor="#fbbf24" />
           </linearGradient>
         </defs>
         <circle cx="80" cy="80" r={RADIUS} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
@@ -51,7 +51,7 @@ export function LevelAvatar({ name, avatarUrl, level, current, required }: Level
 
       {/* inner frame keeps the level-tier color from shared/levels.ts */}
       <div
-        className="absolute inset-3 flex items-center justify-center overflow-hidden rounded-full border bg-linear-to-br from-[#1d3557] to-[#0f1d33] text-4xl font-semibold text-[#f6f1e7]"
+        className="absolute inset-3 flex items-center justify-center overflow-hidden rounded-full border bg-linear-to-br from-[#262629] to-[#0a0a0b] text-4xl font-semibold text-white"
         style={{ borderColor: `${frame}80` }}
       >
         {avatarUrl ? (
@@ -63,7 +63,7 @@ export function LevelAvatar({ name, avatarUrl, level, current, required }: Level
       </div>
 
       <span
-        className={`absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full border border-[#d9bf8c]/50 bg-[#0f1d33] px-3 py-0.5 text-xs font-semibold whitespace-nowrap text-[#e7d3aa] ${DISPLAY}`}
+        className={`absolute -bottom-1 left-1/2 -translate-x-1/2 rounded-full border border-[#fbbf24]/50 bg-[#050505] px-3 py-0.5 text-xs font-semibold whitespace-nowrap text-amber-300 ${DISPLAY}`}
       >
         Рівень {level}
       </span>
