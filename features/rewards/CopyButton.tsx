@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { BUTTON } from '@/shared/ui/PageShell';
+import { LineIcon } from '@/shared/ui/LineIcon';
+import { BUTTON_GHOST } from '@/shared/ui/surface';
 
 /** Copies `text` to the clipboard and briefly confirms. */
 export function CopyButton({ text }: { text: string }) {
@@ -18,8 +19,12 @@ export function CopyButton({ text }: { text: string }) {
   }
 
   return (
-    <button type="button" onClick={copy} className={BUTTON}>
+    <button type="button" onClick={copy} className={`shrink-0 py-1.5! ${BUTTON_GHOST} ${copied ? 'border-emerald-300/50! text-emerald-300!' : ''}`}>
+      <LineIcon name={copied ? 'check' : 'copy'} className="size-4" />
       {copied ? 'Скопійовано' : 'Копіювати'}
+      <span aria-live="polite" className="sr-only">
+        {copied ? 'Промокод скопійовано' : ''}
+      </span>
     </button>
   );
 }

@@ -1,8 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { levelFrameColor, levelTitle } from '@/shared/levels';
+import { DISPLAY } from '@/shared/ui/fonts';
+import { LineIcon } from '@/shared/ui/LineIcon';
+import { FAINT, MUTED } from '@/shared/ui/surface';
+import { SystemPanel } from '@/shared/ui/SystemPanel';
 
-const LEVEL_UP_MS = 1600;
+const LEVEL_UP_MS = 2400;
 
 type XpBarProps = {
   userId: string;
@@ -13,7 +18,7 @@ type XpBarProps = {
 
 /**
  * XP progress to the next level. When the level is higher than the one this browser saw last time,
- * the bar fills up and shows «+1 рівень» before settling on the new progress.
+ * the bar fills up and a «Новий рівень!» card pops up before settling on the new progress.
  */
 export function XpBar({ userId, level, current, required }: XpBarProps) {
   const [levelUp, setLevelUp] = useState(false);
@@ -48,22 +53,68 @@ export function XpBar({ userId, level, current, required }: XpBarProps) {
     };
   }, [userId, level]);
 
-  const percent = required === 0 ? 100 : Math.min(100, (current / required) * 100);
+  const maxLevel = required === 0;
+  const percent = maxLevel ? 100 : Math.min(100, (current / required) * 100);
 
   return (
     <div>
-      <p className="mb-1 flex justify-between text-sm">
-        <span>
-          Рівень {level} {levelUp && <strong className="animate-bounce">+1 рівень!</strong>}
+      <p className="mb-2.5 flex items-baseline justify-between gap-2 text-sm">
+        <span className={MUTED}>
+          {maxLevel ? (
+            'Максимальний рівень'
+          ) : (
+            <>
+              До рівня {level + 1}: <span className="font-semibold text-white">{required - current} XP</span>
+            </>
+          )}
         </span>
-        <span>{required === 0 ? 'Максимальний рівень' : `${current} / ${required} XP`}</span>
+        <span className={`text-xs tabular-nums ${FAINT}`}>
+          {maxLevel ? '' : `${current} / ${required}`}
+        </span>
       </p>
-      <div className="h-2 overflow-hidden rounded bg-gray-200">
+      <div
+        role="progressbar"
+        aria-label="Досвід до наступного рівня"
+        aria-valuemin={0}
+        aria-valuemax={maxLevel ? 1 : required}
+        aria-valuenow={maxLevel ? 1 : current}
+        className="h-1.5 overflow-hidden rounded-full bg-white/[0.07]"
+      >
         <div
-          className={`h-full transition-[width] duration-700 ${levelUp ? 'bg-amber-400' : 'bg-gray-800'}`}
+          className={`h-full rounded-full transition-[width] duration-700 ${
+            levelUp
+              ? 'bg-[#e8c77f]'
+              : 'bg-linear-to-r from-[#f1ece2] to-[#d9bf8c]'
+          }`}
           style={{ width: `${levelUp ? 100 : percent}%` }}
         />
       </div>
+
+      {levelUp && <LevelUpWindow level={level} />}
     </div>
+  );
+}
+
+function LevelUpWindow({ level }: { level: number }) {
+  const color = levelFrameColor(level);
+
+  return (
+    <SystemPanel
+      role="status"
+      className={`fixed! top-8 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 bg-[#132643]/90! px-6 py-4 motion-safe:transition motion-safe:duration-300 motion-safe:ease-out motion-safe:starting:-translate-y-6 motion-safe:starting:opacity-0`}
+    >
+      <span
+        className={`flex size-14 items-center justify-center rounded-full text-2xl font-semibold text-[#f6f1e7] ${DISPLAY}`}
+        style={{ border: `1px solid ${color}`, backgroundColor: `${color}1f` }}
+      >
+        {level}
+      </span>
+      <span className="text-left">
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-[#e7d3aa]">
+          <LineIcon name="sparkle" className="size-4" /> Новий рівень!
+        </span>
+        <span className={`block text-lg font-semibold text-[#f6f1e7] ${DISPLAY}`}>{levelTitle(level)}</span>
+      </span>
+    </SystemPanel>
   );
 }
