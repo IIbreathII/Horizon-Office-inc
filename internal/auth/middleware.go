@@ -3,6 +3,7 @@ package auth
 import (
 	"Horizon/internal/cfg"
 	"context"
+	"math"
 	"net/http"
 	"strings"
 
@@ -26,7 +27,12 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "Неправильний формат заголовку авторизації", http.StatusUnauthorized)
 			return
 		}
-		secretKey := []byte(cfg.RequiredEnv("JWT_SECRET"))
+		secret := cfg.RequiredEnv("JWT_SECRET")
+		if secret == "" {
+			return
+		}
+		secretKey := []byte(secret)
+
 		tokenString := parts[1]
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return secretKey, nil
@@ -41,8 +47,19 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		userID := int64(claims["user_id"].(float64))
-		role := claims["role"].(string)
+		rawUserID, ok := claims["user_id"].(float64)
+		if !ok || rawUserID <= 0 || rawUserID != math.Trunc(rawUserID) {
+			http.Error(w, "Invalid user ID", http.StatusUnauthorized)
+			return
+		}
+
+		role, ok := claims["role"].(string)
+		if !ok || (role != "volunteer" && role != "organization") {
+			http.Error(w, "Invalid role", http.StatusUnauthorized)
+			return
+		}
+
+		userID := int64(rawUserID)
 
 		ctx := context.WithValue(r.Context(), UserIDKey, userID)
 		ctx = context.WithValue(ctx, RoleKey, role)

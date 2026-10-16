@@ -4,6 +4,7 @@ import (
 	"Horizon/internal/auth"
 	"Horizon/internal/cfg"
 	"Horizon/internal/sqlpool"
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -23,8 +24,11 @@ func main() {
 	}
 
 	dsn := cfg.RequiredEnv("DATABASE_URL")
-	db.Connect(dsn)
-	defer db.Pool.Close()
+	pool, err := db.Connect(context.Background(), dsn)
+	if err != nil {
+		log.Println("Підключення не знайдено", err)
+	}
+	defer pool.Close()
 
 	users := sqlpool.NewUserRepository(db.Pool)
 	r := chi.NewRouter()

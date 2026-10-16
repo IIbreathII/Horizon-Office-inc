@@ -5,7 +5,6 @@ import (
 
 	"Horizon/internal/models"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -102,5 +101,3 @@ func (r *UserRepository) CreateGoogleUser(
 
 	return id, err
 }
-
-var _ = pgx.ErrNoRows

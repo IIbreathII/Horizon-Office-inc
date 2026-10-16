@@ -5,11 +5,15 @@ import (
 	"Horizon/internal/models"
 	"Horizon/internal/sqlpool"
 	"encoding/json"
+	"errors"
 	"net/http"
 
+	"github.com/jackc/pgx/v5"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/api/idtoken"
 )
+
+var h *sqlpool.UserRepository
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
@@ -18,7 +22,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := sqlpool.User(r.Context(), req.Email)
+	user, err := h.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
 		http.Error(w, "Неправильний email чи пароль", http.StatusUnauthorized)
 		return
@@ -37,7 +41,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "success",
-		"user_id": user.,
+		"user_id": user.Id,
 		"role":    user.Status,
 		"token":   token,
 	})
@@ -65,13 +69,17 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Помилка сервера при обробці пароля", http.StatusInternalServerError)
 		return
 	}
-	userID, err := sqlpool.CreateUser(r.Context(), req.Email, req.Username, string(hashedPassword), req.Role)
+	userID, err := h.CreateUser(r.Context(), req.Email, req.Username, string(hashedPassword), req.Role)
 	if err != nil {
 		http.Error(w, "Користувач с таким email чи username вже існує", http.StatusConflict)
 		return
 	}
 
-	token, _ := GenerateToken(userID, req.Role)
+	token, err := GenerateToken(userID, req.Role)
+	if err != nil {
+		http.Error(w, "Генерація токену не пройшла успешно", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -102,21 +110,35 @@ func GoogleAuthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	googleID := payload.Subject
-	email := payload.Claims["email"].(string)
-	name := payload.Claims["name"].(string)
+	email, ok := payload.Claims["email"].(string)
+	if !ok || email == "" {
+		http.Error(w, "Google token does not contain email", http.StatusUnauthorized)
+		return
+	}
 
-	// 3. Ищем в базе: старый юзер или новый?
-	user, err := sqlpool.GetUserByGoogleID(r.Context(), googleID)
+	name, _ := payload.Claims["name"].(string)
+	user, err := h.GetUserByGoogleID(r.Context(), googleID)
+
 	var userID int64
 	var role string
+	switch {
+	case err == nil:
+		userID = user.Id
+		role = user.Status
+	case errors.Is(err, pgx.ErrNoRows):
+		userID, err = h.CreateGoogleUser(r.Context(), googleID, email, name, role)
+	default:
+		http.Error(w, "Помилка сервера", http.StatusInternalServerError)
+		return
+	}
 
 	if err != nil {
 		role = req.Role
 		if role != "volunteer" && role != "organization" {
-			role = "volunteer" // Дефолт, если фронт забыл прислать
+			role = "volunteer"
 		}
 
-		userID, err = sqlpool.CreateGoogleUser(r.Context(), googleID, email, name, role)
+		userID, err = h.CreateGoogleUser(r.Context(), googleID, email, name, role)
 		if err != nil {
 			http.Error(w, "Помилка збереження в БД", http.StatusInternalServerError)
 			return
@@ -126,7 +148,15 @@ func GoogleAuthHandler(w http.ResponseWriter, r *http.Request) {
 		role = user.Status
 	}
 
-	token, _ := GenerateToken(userID, role)
+	token, err := GenerateToken(userID, req.Role)
+	if err != nil {
+		http.Error(
+			w,
+			"Помилка генерації токену",
+			http.StatusInternalServerError,
+		)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
