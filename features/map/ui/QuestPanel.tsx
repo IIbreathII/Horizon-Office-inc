@@ -19,10 +19,12 @@ type QuestPanelProps = {
   onBack: () => void;
   onClaim: (id: string) => void;
   pending: boolean;
+  /** Why the last «Записатися» for the shown quest failed. */
+  claimError: string | null;
 };
 
 /** Side panel under the search box: quest list by default, quest details when one is selected. */
-export function QuestPanel({ quests, quest, open, onOpenChange, onSelect, onBack, onClaim, pending }: QuestPanelProps) {
+export function QuestPanel({ quests, quest, open, onOpenChange, onSelect, onBack, onClaim, pending, claimError }: QuestPanelProps) {
   // Esc in the details view goes back to the list (the search input stops its own Esc)
   useEffect(() => {
     if (!open || !quest) return;
@@ -61,7 +63,11 @@ export function QuestPanel({ quests, quest, open, onOpenChange, onSelect, onBack
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {quest ? <QuestDetails quest={quest} onClaim={onClaim} pending={pending} /> : <QuestList quests={quests} onSelect={onSelect} />}
+        {quest ? (
+          <QuestDetails quest={quest} onClaim={onClaim} pending={pending} claimError={claimError} />
+        ) : (
+          <QuestList quests={quests} onSelect={onSelect} />
+        )}
       </div>
     </aside>
   );
@@ -96,7 +102,17 @@ function QuestList({ quests, onSelect }: { quests: Quest[]; onSelect: (quest: Qu
   );
 }
 
-function QuestDetails({ quest, onClaim, pending }: { quest: Quest; onClaim: (id: string) => void; pending: boolean }) {
+function QuestDetails({
+  quest,
+  onClaim,
+  pending,
+  claimError,
+}: {
+  quest: Quest;
+  onClaim: (id: string) => void;
+  pending: boolean;
+  claimError: string | null;
+}) {
   const category = CATEGORIES[quest.category];
   const participation = quest.myParticipation?.status;
   const full = quest.slotsTaken >= quest.slotsTotal;
@@ -154,6 +170,7 @@ function QuestDetails({ quest, onClaim, pending }: { quest: Quest; onClaim: (id:
           Записатися
         </ActionButton>
       )}
+      {claimError && <p className="text-xs text-red-300">Не вдалося записатися: {claimError}</p>}
     </div>
   );
 }

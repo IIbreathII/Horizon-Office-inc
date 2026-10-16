@@ -18,10 +18,17 @@ function Field({ label, error, children }: { label: string; error?: string; chil
   );
 }
 
-export function TextField({ label, error, registration, type = 'text', autoComplete }: FieldProps & { type?: string; autoComplete?: string }) {
+export function TextField({
+  label,
+  error,
+  registration,
+  type = 'text',
+  autoComplete,
+  step,
+}: FieldProps & { type?: string; autoComplete?: string; step?: string }) {
   return (
     <Field label={label} error={error}>
-      <input type={type} autoComplete={autoComplete} aria-invalid={!!error} className={CONTROL} {...registration} />
+      <input type={type} step={step} autoComplete={autoComplete} aria-invalid={!!error} className={CONTROL} {...registration} />
     </Field>
   );
 }

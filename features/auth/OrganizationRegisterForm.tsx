@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { BUTTON } from '@/shared/ui/PageShell';
 import { ORGANIZATION_TYPES, organizationSchema, type OrganizationValues } from './schemas';
-import { SelectField, TextAreaField, TextField } from './ui/TextField';
+import { SelectField, TextAreaField, TextField } from '@/shared/ui/FormFields';
 
 export function OrganizationRegisterForm() {
   const [done, setDone] = useState(false);

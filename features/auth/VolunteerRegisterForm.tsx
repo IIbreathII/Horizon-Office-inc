@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { BUTTON } from '@/shared/ui/PageShell';
 import { volunteerSchema, type VolunteerValues } from './schemas';
-import { TextField } from './ui/TextField';
+import { TextField } from '@/shared/ui/FormFields';
 
 export function VolunteerRegisterForm() {
   const router = useRouter();

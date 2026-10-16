@@ -14,8 +14,8 @@ export interface Quest {
   title: string;
   description: string;
   category: Category;
-  lat: number;
-  lng: number;
+  lat: number | null; // quests without coordinates are not shown on the map
+  lng: number | null;
   address: string;
   startsAt: string | null;        // ISO; not in the backend schema yet
   durationHours: number | null;   // not in the backend schema yet
@@ -23,20 +23,36 @@ export interface Quest {
   slotsTaken: number;
   xpReward: number;
   coinsReward: number;
-  status: 'open' | 'full' | 'finished' | 'cancelled';
+  status: 'open' | 'full' | 'in_progress' | 'finished' | 'cancelled';
   organization: { id: string; name: string; logoUrl?: string };
   myParticipation: { claimId: string; status: ParticipationStatus } | null; // for the current user
 }
 
 export interface Organization {
-  id: string;
+  id: string; // = owner's user id
   name: string;
-  type: string | null;            // e.g. 'ngo', 'charity'
+  types: string | null; // e.g. 'ngo', 'charity'
+  edrpou: string | null;
+  contact: string[];
   description: string | null;
   logoUrl: string | null;
-  contacts: string[];
-  trustScore: number | null;      // 0–5
+  trustScore: number | null; // 0–5
 }
+
+export type ClaimStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'withdrawn';
+
+/** A volunteer's application to a quest, as the organization sees it. */
+export interface QuestClaim {
+  id: string;
+  questId: string;
+  status: ClaimStatus;
+  volunteer: { id: string; name: string; level: number; photoUrl: string | null };
+}
+
+/** A quest that can be placed on the map. */
+export type MapQuest = Quest & { lat: number; lng: number };
+
+export const hasCoords = (quest: Quest): quest is MapQuest => quest.lat !== null && quest.lng !== null;
 
 export interface Me {
   id: string;

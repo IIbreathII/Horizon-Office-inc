@@ -1,98 +1,144 @@
-// Backend REST API (/api/v1) request/response shapes, taken from the DB schema (column names as is).
-// Fields marked ASSUMED are not in the schema — confirm them with the backend team and adjust
-// only this file and mappers.ts.
+// Backend REST API request/response shapes (Express + Prisma, camelCase JSON; spec: <backend>/docs).
+// Marked ASSUMED: endpoints/fields the backend does not have yet — modelled on its Prisma models
+// so they should fit when the routes appear. Adjust only this file and mappers.ts.
 
 export type Id = number;
 
-/** GET /profiles/me — users + volunteers joined. */
-export interface ProfileDto {
-  id: Id;
-  email: string;
-  username: string;
-  photo: string | null;
-  contact: string | null;
-  status: string;
-  role: 'volunteer' | 'organization'; // ASSUMED: set by POST /profiles
-  // volunteers
-  xp: number;
-  balance: number;
-  cur_level: number;
+export type QuestStatusDto = 'open' | 'in_progress' | 'completed' | 'cancelled' | 'archived';
+export type ClaimStatusDto = 'pending' | 'approved' | 'rejected' | 'completed' | 'withdrawn';
+
+/** Cursor-paginated list: GET /quests */
+export interface CursorPage<T> {
+  data: T[];
+  meta: { limit: number; hasMore: boolean; nextCursor: string | null };
+}
+
+/** Page-paginated list: GET /organizations/{id}/quests, GET /quests/{id}/claims */
+export interface PageResult<T> {
+  data: T[];
+  meta: { page: number; limit: number; total: number; totalPages: number };
+}
+
+/** Error body of every non-2xx response. */
+export interface ErrorBody {
+  error: { code: string; message: string; details?: unknown };
 }
 
 /** GET /organizations (ASSUMED endpoint: not in the API yet) */
 export interface OrganizationDto {
-  user_id: Id;
-  organization_name: string;
+  userId: Id;
+  organizationName: string;
   types: string | null;
   edrpou: string | null;
   contact: string[];
   description: string | null;
   logo: string | null;
-  trust_score: number | null;
+  trustScore: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-/** quest_claims; the schema shows quest_id as int[] — ASSUMED a single id here. */
-export interface QuestClaimDto {
+/** POST /organizations, PATCH /organizations/me (partial) */
+export interface OrganizationInput {
+  organizationName: string;
+  types?: string | null;
+  edrpou?: string | null;
+  contact?: string[];
+  description?: string | null;
+  logo?: string | null;
+}
+
+/** POST /quests/{id}/claims → Claim */
+export interface ClaimDto {
   id: Id;
-  quest_id: Id;
-  volunteer_id: Id;
-  status: string; // ASSUMED values: 'claimed' | 'approved' | 'rejected'
+  questId: Id;
+  userId: Id;
+  status: ClaimStatusDto;
+  createdAt: string;
+  updatedAt: string;
 }
 
-/** GET /quests, GET /quests/{id} */
+/** GET /quests/{id}/claims items (organization): the claim with its volunteer. */
+export interface ClaimWithUserDto extends ClaimDto {
+  user: { id: Id; username: string | null; photo: string | null; curLevel: number };
+}
+
+/** PATCH /quests/{id}/status (organization) */
+export type QuestStatusChange = 'in_progress' | 'completed' | 'cancelled';
+
+/** GET /quests (items), GET /quests/{id} */
 export interface QuestDto {
   id: Id;
-  organization_id: Id;
-  quest_name: string;
-  description: string;
+  organizationId: Id;
+  questName: string;
+  description: string | null;
   category: string;
-  address: string;
-  lat: number;
-  lng: number;
-  max_volunteers: number;
-  assigned_volunteers: number;
-  reward_xp: number;
-  reward_coins: number;
-  status: string; // ASSUMED values: 'open' | 'full' | 'finished' | 'cancelled'
-  organization?: Pick<OrganizationDto, 'user_id' | 'organization_name' | 'logo'>; // ASSUMED: embedded
-  claim?: QuestClaimDto | null; // ASSUMED: the current user's claim
-  starts_at?: string | null; // ASSUMED: not in the schema
-  duration_hours?: number | null; // ASSUMED: not in the schema
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  maxVolunteers: number;
+  assignedVolunteers: number;
+  rewardXp: number;
+  rewardCoins: number;
+  status: QuestStatusDto;
+  createdAt: string;
+  updatedAt: string;
+  organization?: Pick<OrganizationDto, 'userId' | 'organizationName' | 'logo' | 'trustScore'>;
+  /** ASSUMED: the current user's claim — the backend does not return it yet (needed for «Ви записані» / my quests). */
+  claim?: ClaimDto | null;
+  /** ASSUMED: not in the backend schema. */
+  startsAt?: string | null;
+  /** ASSUMED: not in the backend schema. */
+  durationHours?: number | null;
 }
 
-/** GET /rewards */
-export interface RewardDto {
+/** POST /quests, PATCH /quests/{id} (organization) — QuestInput in the spec */
+export interface QuestInput {
+  questName: string;
+  description?: string | null;
+  category: string;
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  maxVolunteers: number;
+  rewardXp?: number;
+  rewardCoins?: number;
+}
+
+/** ASSUMED: GET /profiles/me — the User model (+ organization if the user owns one). No route yet. */
+export interface ProfileDto {
   id: Id;
-  rewards_name: string;
-  partner_name: string;
-  cost: number;
+  email: string;
+  username: string | null;
+  photo: string | null;
+  contact: string | null;
+  status: string;
+  xp: number;
+  balance: number;
+  curLevel: number;
+  organization?: Pick<OrganizationDto, 'userId' | 'organizationName'> | null;
 }
 
-/** GET /profiles/me/inventory, POST /rewards/{id}/buy */
-export interface UserRewardDto {
-  id: Id;
-  volunteer_id: Id;
-  reward_id: Id;
-  promocode: string;
-  claimed_time: string;
-  reward?: RewardDto; // ASSUMED: embedded, for name/partner
-}
-
-/** POST /profiles */
+/** ASSUMED: POST /profiles. No route yet (organizations use POST /organizations). */
 export interface CompleteProfileRequest {
   role: 'volunteer' | 'organization';
   contact: string;
 }
 
-/** POST /quests */
-export interface CreateQuestRequest {
-  quest_name: string;
-  description: string;
-  category: string;
-  address: string;
-  lat: number;
-  lng: number;
-  max_volunteers: number;
-  reward_xp: number;
-  reward_coins: number;
+/** ASSUMED: GET /rewards — the Reward model. No route yet. */
+export interface RewardDto {
+  id: Id;
+  rewardsName: string;
+  partnerName: string;
+  cost: number;
+}
+
+/** ASSUMED: GET /profiles/me/inventory, POST /rewards/{id}/buy — the UserReward model. No route yet. */
+export interface UserRewardDto {
+  id: Id;
+  userId: Id;
+  rewardId: Id;
+  promocode: string;
+  claimedTime: string;
+  reward?: RewardDto;
 }

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { BUTTON } from '@/shared/ui/PageShell';
 import { loginSchema, type LoginValues } from './schemas';
-import { TextField } from './ui/TextField';
+import { TextField } from '@/shared/ui/FormFields';
 
 export function LoginForm() {
   const router = useRouter();

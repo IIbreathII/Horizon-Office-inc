@@ -8,7 +8,7 @@ import { QuestPanel } from '@/features/map/ui/QuestPanel';
 import { matchesSearch, QuestSearch } from '@/features/map/ui/QuestSearch';
 import { useClaimQuest, useOrganizations, useQuest, useQuests } from '@/shared/api/queries';
 import { CATEGORIES } from '@/shared/categories';
-import type { Category, Quest } from '@/shared/types';
+import { hasCoords, type Category, type Quest } from '@/shared/types';
 import { ICONS } from '@/shared/icons';
 import { GLASS } from '@/shared/ui/glass';
 import { Icon } from '@/shared/ui/Icon';
@@ -68,8 +68,8 @@ function MapScreen() {
     if (questParam) router.replace('/map', { scroll: false });
   }, [questParam, router]);
 
-  // finished / cancelled quests are history, not map points
-  const quests = allQuests.filter((q) => q.status === 'open' || q.status === 'full');
+  // finished / cancelled quests are history, not map points; only quests with coordinates can be placed
+  const quests = allQuests.filter(hasCoords).filter((q) => q.status === 'open' || q.status === 'full');
   const matchesCategory = (q: Quest, categories = selectedCategories) =>
     categories.length === 0 || categories.includes(q.category);
   const matchesOrg = (q: Quest, orgs = selectedOrgs) => orgs.length === 0 || orgs.includes(q.organization.id);
@@ -165,6 +165,7 @@ function MapScreen() {
         onBack={() => setSelectedId(null)}
         onClaim={(id) => claim.mutate(id)}
         pending={claim.isPending}
+        claimError={claim.isError && claim.variables === panelQuest?.id ? claim.error.message : null}
       />
     </main>
   );
