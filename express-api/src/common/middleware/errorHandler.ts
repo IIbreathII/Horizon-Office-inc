@@ -1,7 +1,7 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
-import { Prisma } from '../../generated/prisma/client.js';
 import { AppError } from '../errors.js';
+import { mapDbError } from '../dbErrors.js';
 import { env } from '../../config/env.js';
 
 function send(res: Parameters<ErrorRequestHandler>[2], status: number, code: string, message: string, details?: unknown) {
@@ -22,15 +22,11 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return send(res, 400, 'VALIDATION_ERROR', 'Invalid request', details);
   }
 
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
-    switch (err.code) {
-      case 'P2002':
-        return send(res, 409, 'CONFLICT', 'Unique constraint violated');
-      case 'P2025':
-        return send(res, 404, 'NOT_FOUND', 'Record not found');
-      case 'P2003':
-        return send(res, 400, 'BAD_REQUEST', 'Related record does not exist');
-    }
+  // Все ошибки БД из любого эндпоинта (Express 5 сам прокидывает async-ошибки сюда).
+  const dbErr = mapDbError(err);
+  if (dbErr) {
+    if (dbErr.status >= 500 && env.NODE_ENV !== 'test') console.error(err);
+    return send(res, dbErr.status, dbErr.code, dbErr.message, dbErr.details);
   }
 
   // Невалидный JSON в теле запроса (body-parser).

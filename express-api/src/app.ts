@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { errorHandler, notFoundHandler } from './common/middleware/errorHandler.js';
 import { organizationsRouter } from './modules/organizations/organizations.routes.js';
 import { questsRouter } from './modules/quests/quests.routes.js';
@@ -9,6 +10,8 @@ export function createApp() {
   const app = express();
 
   app.disable('x-powered-by');
+  // CORS: фронт с localhost / 127.0.0.1 на любом порту
+  app.use(cors({ origin: /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/ }));
   app.use(express.json({ limit: '100kb' }));
 
   app.get('/health', (_req, res) => {
