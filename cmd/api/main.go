@@ -51,7 +51,7 @@ func main() {
 		r.Post("/register", authHandler.RegisterHandler)
 		r.Post("/google", authHandler.GoogleAuthHandler)
 	})
-
+	
 	server := &http.Server{
 		Addr:              ":8080",
 		Handler:           r,

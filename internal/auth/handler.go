@@ -98,6 +98,7 @@ func (h *AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, err := h.repo.CreateUser(r.Context(), req.Email, req.Username, string(hashedPassword), req.Role)
 	if err != nil {
+		log.Printf("Помилка бази при створенні: %v", err)
 		http.Error(w, "Користувач с таким email чи username вже існує", http.StatusConflict)
 		return
 	}
