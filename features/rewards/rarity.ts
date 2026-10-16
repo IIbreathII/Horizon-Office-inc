@@ -12,3 +12,6 @@ const RARITIES: { minCost: number; rarity: Rarity }[] = [
 export function rewardRarity(cost: number): Rarity {
   return (RARITIES.find((r) => cost >= r.minCost) ?? RARITIES[RARITIES.length - 1]).rarity;
 }
+
+/** All rarities, rarest first (e.g. for the lucky-slot reels). */
+export const RARITY_LEVELS: Rarity[] = RARITIES.map((r) => r.rarity);

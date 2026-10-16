@@ -1,7 +1,7 @@
 // Backend DTO → frontend domain model. When the API changes, fix the mapping here.
 import { CATEGORIES } from '@/shared/categories';
 import { levelProgress } from '@/shared/levels';
-import type { Category, InventoryItem, Me, Organization, ParticipationStatus, Quest, QuestClaim, Reward } from '@/shared/types';
+import type { Category, InventoryItem, Me, Organization, ParticipationStatus, Quest, QuestClaim, Reward, RewardSlot, SlotWin } from '@/shared/types';
 import type {
   ClaimDto,
   ClaimStatusDto,
@@ -11,6 +11,8 @@ import type {
   QuestDto,
   QuestStatusDto,
   RewardDto,
+  RewardSlotDto,
+  RewardSlotSpinDto,
   UserRewardDto,
 } from './dto';
 
@@ -119,4 +121,18 @@ export function toInventoryItem(dto: UserRewardDto): InventoryItem {
     promoCode: dto.promocode,
     claimedAt: dto.claimedTime,
   };
+}
+
+export function toRewardSlot(dto: RewardSlotDto): RewardSlot {
+  const per = Math.max(1, dto.questsPerSpin);
+  return {
+    completedQuests: dto.completedQuests,
+    questsPerSpin: per,
+    spinsAvailable: Math.max(0, Math.floor(dto.completedQuests / per) - dto.spinsUsed),
+    progress: dto.completedQuests % per,
+  };
+}
+
+export function toSlotWin(dto: RewardSlotSpinDto): SlotWin {
+  return { reward: toReward(dto.reward), item: toInventoryItem({ ...dto.userReward, reward: dto.reward }) };
 }

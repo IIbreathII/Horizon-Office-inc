@@ -83,3 +83,18 @@ export interface InventoryItem {
   promoCode: string;
   claimedAt: string; // ISO
 }
+
+/** Lucky slot on the rewards page: one free spin for every `questsPerSpin` completed quests. */
+export interface RewardSlot {
+  completedQuests: number;
+  questsPerSpin: number;
+  spinsAvailable: number;
+  /** Completed quests counted toward the next spin (0 … questsPerSpin - 1). */
+  progress: number;
+}
+
+/** What a spin won: the reward and the promo code added to the inventory. */
+export interface SlotWin {
+  reward: Reward;
+  item: InventoryItem;
+}

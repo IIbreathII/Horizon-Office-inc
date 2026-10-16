@@ -4,7 +4,7 @@
 // Backend: Express API (spec at <backend>/docs). Set NEXT_PUBLIC_API_URL (see .env) to use it; while it is
 // unset, the in-memory mock (mock.ts) answers with the same shapes. Endpoints the backend does not have
 // yet (profile, rewards, inventory) always use the mock — switch them to http() when the routes appear.
-import type { InventoryItem, Me, Organization, Quest, QuestClaim, Reward } from '@/shared/types';
+import type { InventoryItem, Me, Organization, Quest, QuestClaim, Reward, RewardSlot, SlotWin } from '@/shared/types';
 import type {
   ClaimDto,
   ClaimWithUserDto,
@@ -18,7 +18,7 @@ import type {
   QuestStatusChange,
 } from './dto';
 import { ApiError, http } from './http';
-import { toInventoryItem, toMe, toOrganization, toQuest, toQuestClaim, toReward } from './mappers';
+import { toInventoryItem, toMe, toOrganization, toQuest, toQuestClaim, toReward, toRewardSlot, toSlotWin } from './mappers';
 import { mockApi } from './mock';
 
 const USE_MOCK = !process.env.NEXT_PUBLIC_API_URL;
@@ -245,4 +245,21 @@ export async function getRewards(): Promise<Reward[]> {
 /** Buy a reward: deducts the balance, returns the promo code. TODO: backend route (POST /rewards/{id}/buy). */
 export async function buyReward(id: string): Promise<InventoryItem> {
   return toInventoryItem(await mockApi.buyReward(Number(id)));
+}
+
+/** Lucky slot: completed quests and spins left. TODO: backend route (GET /rewards/slot, ASSUMED in dto.ts). */
+export async function getRewardSlot(): Promise<RewardSlot> {
+  return toRewardSlot(await mockApi.getRewardSlot());
+}
+
+// TODO(remove-test-spin): test helpers for the lucky slot, mock only (hidden with a real backend).
+export const CAN_GRANT_TEST_SPIN = USE_MOCK;
+
+export async function grantTestSpin(): Promise<RewardSlot> {
+  return toRewardSlot(await mockApi.grantTestSpin());
+}
+
+/** Spend one spin for a free random reward; 409 when none are left. TODO: backend route (POST /rewards/slot/spin). */
+export async function spinRewardSlot(): Promise<SlotWin> {
+  return toSlotWin(await mockApi.spinRewardSlot());
 }

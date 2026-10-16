@@ -142,3 +142,19 @@ export interface UserRewardDto {
   claimedTime: string;
   reward?: RewardDto;
 }
+
+/**
+ * ASSUMED: GET /rewards/slot — the lucky-slot status. No route yet.
+ * One spin is earned for every `questsPerSpin` completed quests (claims with status `completed`).
+ */
+export interface RewardSlotDto {
+  completedQuests: number;
+  questsPerSpin: number;
+  spinsUsed: number;
+}
+
+/** ASSUMED: POST /rewards/slot/spin — a free random reward with its promo code (409 when no spins are left). */
+export interface RewardSlotSpinDto {
+  reward: RewardDto;
+  userReward: UserRewardDto;
+}
