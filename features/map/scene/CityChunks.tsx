@@ -3,12 +3,15 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Manifest, Pt } from '../lib/chunkFormat';
 import { CITY_PALETTE, type BuiltChunk, type InstancedBuffers, type MeshBuffers, type TreeBuffers } from '../lib/chunkGeometry';
 import { ChunkLoader } from '../lib/chunkLoader';
 import { CITY_BOUNDS } from '../lib/projection';
+import { Boats } from './Boats';
 import { createBuildingMaterial, createGroundMaterial, RENDER_ORDER, unitBox, unitPrism } from './cityMaterials';
+import { CityPaths, toWorldPaths } from './cityPaths';
+import { loadModelParts, type ModelPart } from './models';
+import { Traffic } from './Traffic';
 
 // The city of Dnipro from prebuilt chunks in public/city (§4.4):
 // - L1 (base, 4 × 4 km): the whole city, loaded once at start;
@@ -33,8 +36,6 @@ const TREE_URLS = ['/models/trees/tree-default.glb', '/models/trees/tree-fat.glb
 const TREES_NEAR_DISTANCE = 2500;
 
 type ChunkMaterials = { box: THREE.Material; prism: THREE.Material; polygon: THREE.Material; ground: THREE.Material };
-/** One mesh of a tree model, normalized to 1 m height with its base at y = 0. */
-type TreePart = { geometry: THREE.BufferGeometry; material: THREE.Material };
 
 const sharedBox = unitBox();
 const sharedPrism = unitPrism();
@@ -86,27 +87,8 @@ function disposeGroup(g: THREE.Group) {
   });
 }
 
-async function loadTreeModels(): Promise<TreePart[][]> {
-  const loader = new GLTFLoader();
-  return Promise.all(
-    TREE_URLS.map(async (url) => {
-      const { scene } = await loader.loadAsync(url);
-      scene.updateMatrixWorld(true);
-      const box = new THREE.Box3().setFromObject(scene);
-      const k = 1 / (box.max.y - box.min.y);
-      const parts: TreePart[] = [];
-      scene.traverse((o) => {
-        if (!(o instanceof THREE.Mesh)) return;
-        const geometry = (o.geometry as THREE.BufferGeometry).clone().applyMatrix4(o.matrixWorld).translate(0, -box.min.y, 0).scale(k, k, k);
-        parts.push({ geometry, material: o.material as THREE.Material });
-      });
-      return parts;
-    }),
-  );
-}
-
 /** Trees of one chunk: instances split between the models round-robin, one InstancedMesh per model part. */
-function treeGroup(trees: TreeBuffers, models: TreePart[][]) {
+function treeGroup(trees: TreeBuffers, models: ModelPart[][]) {
   const g = new THREE.Group();
   models.forEach((parts, variant) => {
     const n = Math.ceil((trees.count - variant) / models.length);
@@ -136,13 +118,14 @@ const box = new THREE.Box3();
 class CityStreamer {
   private root: THREE.Group;
   private invalidate: () => void;
+  private paths: CityPaths;
   private disposed = false;
   private manifest: Manifest | null = null;
   private loader: ChunkLoader | null = null;
   private base = new Map<string, { group: THREE.Group; materials: THREE.ShaderMaterial[] }>();
   private detail = new Map<string, THREE.Group>();
   private inflight = new Map<string, () => void>();
-  private treeModels: TreePart[][] = [];
+  private treeModels: ModelPart[][] = [];
   private detailTrees = new Set<THREE.Group>();
   private baseTrees = new Set<THREE.Group>();
   private treesNear = false; // the camera starts with the whole city in view
@@ -154,15 +137,16 @@ class CityStreamer {
   };
   private lastView = '';
 
-  constructor(root: THREE.Group, invalidate: () => void) {
+  constructor(root: THREE.Group, invalidate: () => void, paths: CityPaths) {
     this.root = root;
     this.invalidate = invalidate;
+    this.paths = paths;
     const manifest = fetch(`${CITY_URL}manifest.json`).then((res) => {
       if (!res.ok) throw new Error(`HTTP ${res.status} ${CITY_URL}manifest.json`);
       return res.json() as Promise<Manifest>;
     });
     // trees are optional: without models the city still loads
-    const treeModels = loadTreeModels().catch((err: unknown) => {
+    const treeModels = Promise.all(TREE_URLS.map((url) => loadModelParts(url, 'height'))).catch((err: unknown) => {
       console.warn('Tree models failed to load, city without trees', err);
       return [];
     });
@@ -209,6 +193,7 @@ class CityStreamer {
       group.add(trees);
     }
     this.base.set(key, { group, materials: [box, ground] });
+    this.paths.add(toWorldPaths(chunk.roadPaths, origin[0], -origin[1]));
     this.updateHiddenCells(key);
     this.root.add(group);
     this.invalidate();
@@ -367,23 +352,25 @@ const GROUND_SIZE = Math.max(CITY_BOUNDS.maxX - CITY_BOUNDS.minX, CITY_BOUNDS.ma
 export function CityChunks() {
   const invalidate = useThree((s) => s.invalidate);
   const [root] = useState(() => new THREE.Group());
+  // major-road paths of the base chunks, shared with the traffic
+  const [paths] = useState(() => new CityPaths());
   const streamer = useRef<CityStreamer | null>(null);
 
   useEffect(() => {
-    const s = new CityStreamer(root, invalidate);
+    const s = new CityStreamer(root, invalidate, paths);
     streamer.current = s;
     return () => {
       s.dispose();
       streamer.current = null;
     };
-  }, [root, invalidate]);
+  }, [root, invalidate, paths]);
 
   useFrame(({ camera }) => streamer.current?.update(camera));
 
   return (
     <>
       <color attach="background" args={[CITY_PALETTE.background]} />
-      {/* lights for the 3D models (trees, quest pin); the city shaders are unlit */}
+      {/* lights for the 3D models (trees, vehicles, boats, quest pin); the city shaders are unlit */}
       <hemisphereLight args={['#ffffff', '#b9c4d6', 1.8]} />
       <directionalLight position={[-0.5, 0.85, 0.35]} intensity={1.6} />
       {/* land under and around the city; flat layers draw without depth, in RENDER_ORDER */}
@@ -396,6 +383,9 @@ export function CityChunks() {
         <meshBasicMaterial color={CITY_PALETTE.ground} depthWrite={false} />
       </mesh>
       <primitive object={root} />
+      {/* city life: boats on the river, cars on major roads */}
+      <Boats />
+      <Traffic paths={paths} />
     </>
   );
 }

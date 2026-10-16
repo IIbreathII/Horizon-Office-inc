@@ -56,13 +56,27 @@ export interface TreeBuffers {
   matrices: Float32Array; // 16 × count
 }
 
+/**
+ * Polylines for moving city life: x, z pairs in chunk coords (z = -north); path i is
+ * points[starts[i] * 2 … starts[i + 1] * 2).
+ */
+export interface PathBuffers {
+  points: Float32Array;
+  starts: Uint32Array;
+}
+
 export interface BuiltChunk {
   boxes: InstancedBuffers | null;
   prisms: InstancedBuffers | null;
   polygons: MeshBuffers | null;
   ground: MeshBuffers | null;
   trees: TreeBuffers | null;
+  /** Major roads for cars (base chunks only). */
+  roadPaths: PathBuffers | null;
 }
+
+// Degenerate road pieces are skipped for traffic; short ones stay, they link the roads at junctions.
+const MIN_ROAD_PATH_M = 1;
 
 // Trees scattered over parks, tuned by eye: dense in detail chunks (L0, close view),
 // sparser and a bit bigger in base chunks (L1, far view) so the whole city stays cheap to draw.
@@ -294,8 +308,35 @@ function trees(c: ChunkData): TreeBuffers | null {
   return { count, matrices };
 }
 
+// ---------- paths for city life ----------
+
+/** Major-road polylines of a base chunk (the whole city at any zoom), for traffic. */
+function roadPaths(c: ChunkData): PathBuffers | null {
+  if (c.level !== 1) return null;
+  const points: number[] = [];
+  const starts = [0];
+  for (const road of c.roads) {
+    if (road.cls !== 0 || road.pts.length < 2) continue;
+    let length = 0;
+    for (let i = 1; i < road.pts.length; i++) {
+      length += Math.hypot(road.pts[i][0] - road.pts[i - 1][0], road.pts[i][1] - road.pts[i - 1][1]);
+    }
+    if (length < MIN_ROAD_PATH_M) continue;
+    for (const [x, y] of road.pts) points.push(x, -y);
+    starts.push(points.length / 2);
+  }
+  return starts.length > 1 ? { points: new Float32Array(points), starts: new Uint32Array(starts) } : null;
+}
+
 export function buildChunk(c: ChunkData): BuiltChunk {
-  return { boxes: boxes(c), prisms: prisms(c), polygons: polygons(c), ground: ground(c), trees: trees(c) };
+  return {
+    boxes: boxes(c),
+    prisms: prisms(c),
+    polygons: polygons(c),
+    ground: ground(c),
+    trees: trees(c),
+    roadPaths: roadPaths(c),
+  };
 }
 
 export function transferables(b: BuiltChunk): ArrayBuffer[] {
@@ -308,5 +349,6 @@ export function transferables(b: BuiltChunk): ArrayBuffer[] {
     for (const a of [mesh.position, mesh.color, mesh.gradT, mesh.cell]) if (a) out.push(a.buffer as ArrayBuffer);
   }
   if (b.trees) out.push(b.trees.matrices.buffer as ArrayBuffer);
+  if (b.roadPaths) out.push(b.roadPaths.points.buffer as ArrayBuffer, b.roadPaths.starts.buffer as ArrayBuffer);
   return [...new Set(out)];
 }
