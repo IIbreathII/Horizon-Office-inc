@@ -4,36 +4,35 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ChunkData, Pt } from './chunkFormat';
 
-// Stylized city palette, tuned by eye.
+// Stylized city palette, sampled from the design mockup (steel-blue city, cream ground, white roads).
+const STEEL_BLUE = '#98add0';
+const DARK_BLUE = '#6a84ae';
+const ORANGE = '#f1aa67';
+
 export const CITY_PALETTE = {
-  background: '#e9e4f5',
-  ground: '#f3f0f8',
-  water: '#9cc8ec',
-  park: '#bfe3c0',
-  pedestrian: '#e2dcee',
+  background: '#e3eef7',
+  ground: '#f0f0e8',
+  water: '#69baf1',
+  park: '#b1db9f',
+  pedestrian: '#e8e6dc',
   roadMajor: '#ffffff',
-  roadMinor: '#faf8fd',
-  roadFoot: '#d7cfe6',
-  /** Base color by building=*; the shader adds a dark-bottom → light-top gradient. */
+  roadMinor: '#f8f8f8',
+  roadFoot: '#e4e2da',
+  /** Ordinary buildings: each takes a shade along this dark → light blue ramp (per-building random). */
+  blueRamp: ['#58719c', DARK_BLUE, '#8096c2', STEEL_BLUE, '#b3c4e2'],
+  /** Accent buildings by building=*; the shader adds a dark-bottom → light-top gradient to all. */
   buildings: {
-    default: '#8f86e8',
-    residential: '#7fa7f0',
-    apartments: '#7fa7f0',
-    house: '#86c0ea',
-    commercial: '#f08fb4',
-    retail: '#f3a17f',
-    office: '#c48ef0',
-    church: '#f5c95c',
-    cathedral: '#f5c95c',
-    religious: '#f5c95c',
-    government: '#6fd0c0',
-    public: '#6fd0c0',
-    civic: '#6fd0c0',
-    university: '#9fdc7c',
-    school: '#9fdc7c',
-    hotel: '#e88fe0',
+    retail: ORANGE,
+    church: ORANGE,
+    cathedral: ORANGE,
+    religious: ORANGE,
+    commercial: ORANGE,
+    hotel: ORANGE,
+    government: ORANGE,
+    public: ORANGE,
+    civic: ORANGE,
   } as Record<string, string>,
-  /** Brightness spread between buildings (0…1). */
+  /** Brightness spread between accent buildings (0…1). */
   jitter: 0.12,
 };
 
@@ -51,12 +50,26 @@ export interface MeshBuffers {
   cell?: Float32Array;
 }
 
+/** Tree instances: matrices place a model normalized to 1 m height with its base at y = 0. */
+export interface TreeBuffers {
+  count: number;
+  matrices: Float32Array; // 16 × count
+}
+
 export interface BuiltChunk {
   boxes: InstancedBuffers | null;
   prisms: InstancedBuffers | null;
   polygons: MeshBuffers | null;
   ground: MeshBuffers | null;
+  trees: TreeBuffers | null;
 }
+
+// Trees scattered over parks, tuned by eye: dense in detail chunks (L0, close view),
+// sparser and a bit bigger in base chunks (L1, far view) so the whole city stays cheap to draw.
+const TREES = [
+  { areaPerTree: 250, maxPerChunk: 600, minHeight: 13, maxHeight: 21 }, // L0, 1 × 1 km
+  { areaPerTree: 1200, maxPerChunk: 800, minHeight: 20, maxHeight: 30 }, // L1, 4 × 4 km
+];
 
 // ---------- colors ----------
 
@@ -68,14 +81,21 @@ export function setKinds(k: string[]) {
   kindColors.clear();
 }
 
+const blueRamp = CITY_PALETTE.blueRamp.map((hex) => new THREE.Color(hex));
 const tmpColor = new THREE.Color();
 const hsl = { h: 0, s: 0, l: 0 };
 
+/** `tone` is a random byte per building: its place on the blue ramp, or the accent's brightness jitter. */
 function buildingColor(kind: number, tone: number): THREE.Color {
+  const accent = CITY_PALETTE.buildings[kinds[kind]];
+  if (!accent) {
+    const t = (tone / 255) * (blueRamp.length - 1);
+    const i = Math.min(Math.floor(t), blueRamp.length - 2);
+    return tmpColor.lerpColors(blueRamp[i], blueRamp[i + 1], t - i);
+  }
   let base = kindColors.get(kind);
   if (!base) {
-    const pal = CITY_PALETTE.buildings;
-    base = new THREE.Color(pal[kinds[kind]] ?? pal.default);
+    base = new THREE.Color(accent);
     kindColors.set(kind, base);
   }
   base.getHSL(hsl);
@@ -219,8 +239,63 @@ function ground(c: ChunkData): MeshBuffers | null {
   return { position: new Float32Array(pos), color: new Float32Array(color), cell: new Float32Array(cell) };
 }
 
+// ---------- trees ----------
+
+/** Small seeded PRNG (mulberry32): a chunk gets the same trees on every load. */
+function seededRandom(seed: number) {
+  let s = seed | 0;
+  return () => {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Random points over the park triangles (area-weighted), with random rotation and height. */
+function trees(c: ChunkData): TreeBuffers | null {
+  const cfg = TREES[c.level];
+  if (!cfg) return null;
+  const parks = c.areas.filter((a) => a.kind === 0);
+  if (!parks.length) return null;
+  const tris: number[] = [];
+  for (const a of parks) area(a.rings, tris);
+
+  const [sx, sy] = parks[0].rings[0][0];
+  const rand = seededRandom(Math.round(sx * 7919 + sy * 104729));
+  const points: number[] = []; // x, z pairs
+  for (let i = 0; i < tris.length; i += 9) {
+    const ax = tris[i], az = tris[i + 2], bx = tris[i + 3], bz = tris[i + 5], cx = tris[i + 6], cz = tris[i + 8];
+    const triArea = Math.abs((bx - ax) * (cz - az) - (cx - ax) * (bz - az)) / 2;
+    for (let n = Math.floor(triArea / cfg.areaPerTree + rand()); n > 0; n--) {
+      let r1 = rand(), r2 = rand();
+      if (r1 + r2 > 1) {
+        r1 = 1 - r1;
+        r2 = 1 - r2;
+      }
+      points.push(ax + r1 * (bx - ax) + r2 * (cx - ax), az + r1 * (bz - az) + r2 * (cz - az));
+    }
+  }
+  const total = points.length / 2;
+  if (!total) return null;
+
+  const step = Math.ceil(total / cfg.maxPerChunk);
+  const count = Math.ceil(total / step);
+  const matrices = new Float32Array(count * 16);
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const pos = new THREE.Vector3(), scale = new THREE.Vector3();
+  for (let k = 0; k < count; k++) {
+    const i = k * step;
+    const h = cfg.minHeight + rand() * (cfg.maxHeight - cfg.minHeight);
+    q.setFromAxisAngle(up, rand() * Math.PI * 2);
+    m.compose(pos.set(points[i * 2], 0, points[i * 2 + 1]), q, scale.set(h, h, h));
+    m.toArray(matrices, k * 16);
+  }
+  return { count, matrices };
+}
+
 export function buildChunk(c: ChunkData): BuiltChunk {
-  return { boxes: boxes(c), prisms: prisms(c), polygons: polygons(c), ground: ground(c) };
+  return { boxes: boxes(c), prisms: prisms(c), polygons: polygons(c), ground: ground(c), trees: trees(c) };
 }
 
 export function transferables(b: BuiltChunk): ArrayBuffer[] {
@@ -232,5 +307,6 @@ export function transferables(b: BuiltChunk): ArrayBuffer[] {
     if (!mesh) continue;
     for (const a of [mesh.position, mesh.color, mesh.gradT, mesh.cell]) if (a) out.push(a.buffer as ArrayBuffer);
   }
+  if (b.trees) out.push(b.trees.matrices.buffer as ArrayBuffer);
   return [...new Set(out)];
 }

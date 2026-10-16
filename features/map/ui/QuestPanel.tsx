@@ -1,114 +1,164 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { CATEGORIES } from '@/shared/categories';
+import { formatDateTime, formatDuration } from '@/shared/format';
+import { ICONS } from '@/shared/icons';
 import type { Quest } from '@/shared/types';
+import { GLASS } from '@/shared/ui/glass';
+import { Icon } from '@/shared/ui/Icon';
 
 type QuestPanelProps = {
+  /** Quests currently on the map (after the category filter). */
+  quests: Quest[];
+  /** Selected quest: details view; null: list view. */
   quest: Quest | null;
-  onClose: () => void;
-  onJoin: (id: string) => void;
-  onLeave: (id: string) => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (quest: Quest) => void;
+  onBack: () => void;
+  onClaim: (id: string) => void;
   pending: boolean;
 };
 
-const dateTimeFormat = new Intl.DateTimeFormat('uk-UA', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: 'Europe/Kyiv',
-});
-
-export function QuestPanel({ quest, onClose, onJoin, onLeave, pending }: QuestPanelProps) {
-  // Keep the last quest so the panel slides out with its content instead of going blank
-  const [shown, setShown] = useState(quest);
-  if (quest && quest !== shown) setShown(quest);
-
+/** Side panel under the search box: quest list by default, quest details when one is selected. */
+export function QuestPanel({ quests, quest, open, onOpenChange, onSelect, onBack, onClaim, pending }: QuestPanelProps) {
+  // Esc in the details view goes back to the list (the search input stops its own Esc)
   useEffect(() => {
-    if (!quest) return;
+    if (!open || !quest) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') onBack();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [quest, onClose]);
+  }, [open, quest, onBack]);
 
-  const open = quest !== null;
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => onOpenChange(true)}
+        className={`fixed top-16 right-4 z-20 h-10 cursor-pointer rounded-full px-4 text-sm font-medium hover:bg-[#25314f]/90 ${GLASS}`}
+      >
+        Квести · {quests.length}
+      </button>
+    );
+  }
 
   return (
-    <aside
-      inert={!open}
-      aria-hidden={!open}
-      className={`fixed top-16 right-0 bottom-0 z-20 w-96 overflow-y-auto bg-white text-slate-900 transition-transform duration-300 ${open ? 'translate-x-0 shadow-2xl' : 'translate-x-full'}`}
-    >
-      {shown && <QuestDetails quest={shown} onClose={onClose} onJoin={onJoin} onLeave={onLeave} pending={pending} />}
+    <aside className={`fixed top-16 right-4 bottom-4 z-20 flex w-72 flex-col overflow-hidden rounded-2xl ${GLASS}`}>
+      <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-white/10 pr-2 pl-4">
+        {quest ? (
+          <button type="button" onClick={onBack} className="cursor-pointer text-sm text-white/80 hover:text-white">
+            ← Назад
+          </button>
+        ) : (
+          <h2 className="text-sm font-semibold">Квести ({quests.length})</h2>
+        )}
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          aria-label="Сховати панель"
+          className="cursor-pointer rounded-full px-2 py-1 text-lg leading-none text-white/60 hover:bg-white/10 hover:text-white"
+        >
+          »
+        </button>
+      </header>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {quest ? <QuestDetails quest={quest} onClaim={onClaim} pending={pending} /> : <QuestList quests={quests} onSelect={onSelect} />}
+      </div>
     </aside>
   );
 }
 
-function QuestDetails({ quest, onClose, onJoin, onLeave, pending }: Omit<QuestPanelProps, 'quest'> & { quest: Quest }) {
+function QuestList({ quests, onSelect }: { quests: Quest[]; onSelect: (quest: Quest) => void }) {
+  if (quests.length === 0) return <p className="px-4 py-3 text-sm text-white/60">Немає квестів за цим фільтром</p>;
+
+  return (
+    <ul className="py-1">
+      {quests.map((quest) => (
+        <li key={quest.id}>
+          <button
+            type="button"
+            onClick={() => onSelect(quest)}
+            className="flex w-full cursor-pointer items-start gap-3 px-4 py-2.5 text-left hover:bg-white/10"
+          >
+            <Icon src={CATEGORIES[quest.category].icon} className="mt-0.5 size-5" />
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-medium">{quest.title}</span>
+              <span className="block truncate text-xs text-white/60">{quest.address}</span>
+              {quest.myParticipation ? (
+                <span className="text-xs text-amber-300">Ви записані</span>
+              ) : quest.slotsTaken >= quest.slotsTotal ? (
+                <span className="text-xs text-white/40">Місць немає</span>
+              ) : null}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function QuestDetails({ quest, onClaim, pending }: { quest: Quest; onClaim: (id: string) => void; pending: boolean }) {
   const category = CATEGORIES[quest.category];
-  const joined = quest.myParticipation?.status === 'joined';
+  const participation = quest.myParticipation?.status;
   const full = quest.slotsTaken >= quest.slotsTotal;
 
   return (
-    <div className="flex min-h-full flex-col gap-5 p-6">
-      <div className="flex items-start justify-between gap-4">
-        <span
-          className="rounded-full px-3 py-1 text-sm font-medium"
-          style={{ backgroundColor: `${category.color}22`, color: category.color }}
-        >
-          {category.emoji} {category.label}
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Закрити"
-          className="-mt-1 -mr-2 cursor-pointer rounded-full px-2 text-2xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-        >
-          ×
-        </button>
-      </div>
+    <div className="flex flex-col gap-4 p-4">
+      <span
+        className="flex items-center gap-1.5 self-start rounded-full px-2.5 py-0.5 text-xs font-medium"
+        style={{ backgroundColor: `${category.color}33`, color: category.color }}
+      >
+        <Icon src={category.icon} className="size-4" /> {category.label}
+      </span>
 
       <div>
-        <h2 className="text-2xl font-semibold leading-tight">{quest.title}</h2>
-        <p className="mt-1 text-sm text-slate-500">{quest.organization.name}</p>
+        <h3 className="text-lg leading-snug font-semibold">{quest.title}</h3>
+        <p className="mt-0.5 text-xs text-white/60">{quest.organization.name}</p>
       </div>
 
-      <p className="leading-relaxed text-slate-700">{quest.description}</p>
+      <p className="text-sm leading-relaxed text-white/80">{quest.description}</p>
 
-      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-        <dt className="text-slate-500">Адреса</dt>
+      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
+        <dt className="text-white/50">Адреса</dt>
         <dd>{quest.address}</dd>
-        <dt className="text-slate-500">Коли</dt>
-        <dd className="first-letter:uppercase">{dateTimeFormat.format(new Date(quest.startsAt))}</dd>
-        <dt className="text-slate-500">Тривалість</dt>
-        <dd>{quest.durationHours.toLocaleString('uk-UA')} год</dd>
-        <dt className="text-slate-500">Нагорода</dt>
-        <dd className="font-medium text-emerald-600">+{quest.xpReward} XP</dd>
-        <dt className="text-slate-500">Місця</dt>
+        <dt className="text-white/50">Коли</dt>
+        <dd className="first-letter:uppercase">{formatDateTime(quest.startsAt)}</dd>
+        <dt className="text-white/50">Тривалість</dt>
+        <dd>{formatDuration(quest.durationHours)}</dd>
+        <dt className="text-white/50">Нагорода</dt>
+        <dd className="flex items-center gap-1 font-medium">
+          <span className="text-emerald-300">+{quest.xpReward} XP</span>
+          <span className="ml-1 text-amber-300">+{quest.coinsReward}</span>
+          <Icon src={ICONS.coin} className="size-4" />
+        </dd>
+        <dt className="text-white/50">Місця</dt>
         <dd>
           {quest.slotsTaken} / {quest.slotsTotal}
         </dd>
       </dl>
 
-      <div className="mt-auto">
-        {joined ? (
-          <ActionButton pending={pending} onClick={() => onLeave(quest.id)} className="bg-yellow-100 text-yellow-900 hover:bg-yellow-200">
-            Ви записані · Скасувати
-          </ActionButton>
-        ) : full ? (
-          <ActionButton disabled className="bg-slate-100 text-slate-400">
-            Місць немає
-          </ActionButton>
-        ) : (
-          <ActionButton pending={pending} onClick={() => onJoin(quest.id)} className="bg-blue-600 text-white hover:bg-blue-700">
-            Записатися
-          </ActionButton>
-        )}
-      </div>
+      {/* the API has no "leave quest" endpoint, so joining is final */}
+      {participation === 'completed' ? (
+        <ActionButton disabled className="bg-emerald-500/20 text-emerald-300">
+          Виконано ✓
+        </ActionButton>
+      ) : participation ? (
+        <ActionButton disabled className="bg-amber-400/20 text-amber-200">
+          Ви записані
+        </ActionButton>
+      ) : full ? (
+        <ActionButton disabled className="bg-white/10 text-white/50">
+          Місць немає
+        </ActionButton>
+      ) : (
+        <ActionButton pending={pending} onClick={() => onClaim(quest.id)} className="bg-indigo-500 text-white hover:bg-indigo-400">
+          Записатися
+        </ActionButton>
+      )}
     </div>
   );
 }
@@ -131,7 +181,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled || pending}
-      className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-3 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${className}`}
+      className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${className}`}
     >
       {pending && <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />}
       {children}

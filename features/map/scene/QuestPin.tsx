@@ -25,10 +25,7 @@ export function QuestPin({ x, z, color }: { x: number; z: number; color: string 
 
   return (
     <>
-      {/* lights only affect the pin: the city uses its own unlit shaders */}
-      <ambientLight intensity={1.2} />
-      <directionalLight position={[0.5, 1, 0.3]} intensity={2} />
-
+      {/* lit by the scene lights in CityChunks */}
       <group position={[x, 0, z]}>
         <mesh position-y={BEAM_HEIGHT / 2} renderOrder={20}>
           <cylinderGeometry args={[BEAM_RADIUS, BEAM_RADIUS, BEAM_HEIGHT, 32, 1, true]} />

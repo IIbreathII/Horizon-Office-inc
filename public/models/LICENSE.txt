@@ -1,0 +1,5 @@
+3D models in this folder
+
+trees/tree-default.glb, trees/tree-fat.glb
+  Kenney "Nature Kit" — https://kenney.nl/assets/nature-kit
+  License: CC0 1.0 Universal (public domain), credit not required.

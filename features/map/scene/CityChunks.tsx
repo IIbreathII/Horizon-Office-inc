@@ -3,8 +3,9 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { Manifest, Pt } from '../lib/chunkFormat';
-import { CITY_PALETTE, type BuiltChunk, type InstancedBuffers, type MeshBuffers } from '../lib/chunkGeometry';
+import { CITY_PALETTE, type BuiltChunk, type InstancedBuffers, type MeshBuffers, type TreeBuffers } from '../lib/chunkGeometry';
 import { ChunkLoader } from '../lib/chunkLoader';
 import { CITY_BOUNDS } from '../lib/projection';
 import { createBuildingMaterial, createGroundMaterial, RENDER_ORDER, unitBox, unitPrism } from './cityMaterials';
@@ -26,10 +27,19 @@ const DETAIL = {
   alwaysRadius: 400, // closer than this a chunk loads even when off-screen
 };
 
+// Free CC0 tree models (Kenney Nature Kit), scattered over parks in detail chunks
+const TREE_URLS = ['/models/trees/tree-default.glb', '/models/trees/tree-fat.glb'];
+// closer than this: dense detail-chunk trees; farther: sparser base-chunk trees over the whole city
+const TREES_NEAR_DISTANCE = 2500;
+
 type ChunkMaterials = { box: THREE.Material; prism: THREE.Material; polygon: THREE.Material; ground: THREE.Material };
+/** One mesh of a tree model, normalized to 1 m height with its base at y = 0. */
+type TreePart = { geometry: THREE.BufferGeometry; material: THREE.Material };
 
 const sharedBox = unitBox();
 const sharedPrism = unitPrism();
+// geometries reused by many chunks: never disposed together with a chunk
+const sharedGeometries = new Set<THREE.BufferGeometry>([sharedBox, sharedPrism]);
 
 const parseKey = (key: string) => key.split('_').map(Number) as [number, number];
 
@@ -72,8 +82,48 @@ function disposeGroup(g: THREE.Group) {
   g.removeFromParent();
   g.traverse((o) => {
     if (o instanceof THREE.InstancedMesh) o.dispose();
-    if (o instanceof THREE.Mesh && o.geometry !== sharedBox && o.geometry !== sharedPrism) o.geometry.dispose();
+    if (o instanceof THREE.Mesh && !sharedGeometries.has(o.geometry)) o.geometry.dispose();
   });
+}
+
+async function loadTreeModels(): Promise<TreePart[][]> {
+  const loader = new GLTFLoader();
+  return Promise.all(
+    TREE_URLS.map(async (url) => {
+      const { scene } = await loader.loadAsync(url);
+      scene.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(scene);
+      const k = 1 / (box.max.y - box.min.y);
+      const parts: TreePart[] = [];
+      scene.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const geometry = (o.geometry as THREE.BufferGeometry).clone().applyMatrix4(o.matrixWorld).translate(0, -box.min.y, 0).scale(k, k, k);
+        parts.push({ geometry, material: o.material as THREE.Material });
+      });
+      return parts;
+    }),
+  );
+}
+
+/** Trees of one chunk: instances split between the models round-robin, one InstancedMesh per model part. */
+function treeGroup(trees: TreeBuffers, models: TreePart[][]) {
+  const g = new THREE.Group();
+  models.forEach((parts, variant) => {
+    const n = Math.ceil((trees.count - variant) / models.length);
+    if (n <= 0) return;
+    const matrices = new Float32Array(n * 16);
+    for (let k = 0; k < n; k++) {
+      const i = variant + k * models.length;
+      matrices.set(trees.matrices.subarray(i * 16, i * 16 + 16), k * 16);
+    }
+    for (const part of parts) {
+      const mesh = new THREE.InstancedMesh(part.geometry, part.material, n);
+      mesh.instanceMatrix = new THREE.InstancedBufferAttribute(matrices, 16);
+      mesh.computeBoundingSphere();
+      g.add(mesh);
+    }
+  });
+  return g;
 }
 
 // Scratch objects for the per-frame visibility check
@@ -92,6 +142,10 @@ class CityStreamer {
   private base = new Map<string, { group: THREE.Group; materials: THREE.ShaderMaterial[] }>();
   private detail = new Map<string, THREE.Group>();
   private inflight = new Map<string, () => void>();
+  private treeModels: TreePart[][] = [];
+  private detailTrees = new Set<THREE.Group>();
+  private baseTrees = new Set<THREE.Group>();
+  private treesNear = false; // the camera starts with the whole city in view
   private detailMaterials = {
     box: createBuildingMaterial(),
     prism: createBuildingMaterial(),
@@ -103,12 +157,21 @@ class CityStreamer {
   constructor(root: THREE.Group, invalidate: () => void) {
     this.root = root;
     this.invalidate = invalidate;
-    fetch(`${CITY_URL}manifest.json`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status} ${CITY_URL}manifest.json`);
-        return res.json() as Promise<Manifest>;
+    const manifest = fetch(`${CITY_URL}manifest.json`).then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status} ${CITY_URL}manifest.json`);
+      return res.json() as Promise<Manifest>;
+    });
+    // trees are optional: without models the city still loads
+    const treeModels = loadTreeModels().catch((err: unknown) => {
+      console.warn('Tree models failed to load, city without trees', err);
+      return [];
+    });
+    Promise.all([manifest, treeModels])
+      .then(([m, models]) => {
+        this.treeModels = models;
+        for (const parts of models) for (const { geometry } of parts) sharedGeometries.add(geometry);
+        this.start(m);
       })
-      .then((manifest) => this.start(manifest))
       .catch((err: unknown) => {
         if (!this.disposed) console.error('City failed to load', err);
       });
@@ -139,6 +202,12 @@ class CityStreamer {
     const box = createBuildingMaterial({ hideCells: true });
     const ground = createGroundMaterial({ hideCells: true });
     const group = chunkGroup(chunk, origin, { box, prism: box, polygon: box, ground }, true);
+    if (chunk.trees && this.treeModels.length) {
+      const trees = treeGroup(chunk.trees, this.treeModels);
+      trees.visible = !this.treesNear;
+      this.baseTrees.add(trees);
+      group.add(trees);
+    }
     this.base.set(key, { group, materials: [box, ground] });
     this.updateHiddenCells(key);
     this.root.add(group);
@@ -150,6 +219,12 @@ class CityStreamer {
     const { ox, oy, size } = this.manifest.grid;
     const [cx, cy] = parseKey(key);
     const group = chunkGroup(chunk, [ox + cx * size, oy + cy * size], this.detailMaterials, false);
+    if (chunk.trees && this.treeModels.length) {
+      const trees = treeGroup(chunk.trees, this.treeModels);
+      trees.visible = this.treesNear;
+      this.detailTrees.add(trees);
+      group.add(trees);
+    }
     this.detail.set(key, group);
     this.root.add(group);
     this.updateHiddenCells(this.baseKeyOf(key));
@@ -159,6 +234,7 @@ class CityStreamer {
   private removeDetail(key: string) {
     const group = this.detail.get(key);
     if (!group) return;
+    for (const child of group.children) if (child instanceof THREE.Group) this.detailTrees.delete(child);
     disposeGroup(group);
     this.detail.delete(key);
     this.updateHiddenCells(this.baseKeyOf(key));
@@ -206,6 +282,13 @@ class CityStreamer {
       distance <= DETAIL.maxDistance
         ? THREE.MathUtils.clamp(distance * DETAIL.radiusFactor, DETAIL.minRadius, DETAIL.maxRadius)
         : 0;
+
+    const treesNear = distance <= TREES_NEAR_DISTANCE;
+    if (treesNear !== this.treesNear) {
+      this.treesNear = treesNear;
+      for (const g of this.detailTrees) g.visible = treesNear;
+      for (const g of this.baseTrees) g.visible = !treesNear;
+    }
 
     projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(projView);
@@ -265,8 +348,17 @@ class CityStreamer {
       materials.forEach((m) => m.dispose());
     }
     Object.values(this.detailMaterials).forEach((m) => m.dispose());
+    for (const parts of this.treeModels) {
+      for (const { geometry, material } of parts) {
+        sharedGeometries.delete(geometry);
+        geometry.dispose();
+        material.dispose();
+      }
+    }
     this.detail.clear();
     this.base.clear();
+    this.detailTrees.clear();
+    this.baseTrees.clear();
   }
 }
 
@@ -291,6 +383,9 @@ export function CityChunks() {
   return (
     <>
       <color attach="background" args={[CITY_PALETTE.background]} />
+      {/* lights for the 3D models (trees, quest pin); the city shaders are unlit */}
+      <hemisphereLight args={['#ffffff', '#b9c4d6', 1.8]} />
+      <directionalLight position={[-0.5, 0.85, 0.35]} intensity={1.6} />
       {/* land under and around the city; flat layers draw without depth, in RENDER_ORDER */}
       <mesh
         rotation-x={-Math.PI / 2}

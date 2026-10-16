@@ -1,11 +1,16 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 import { QuestPanel } from '@/features/map/ui/QuestPanel';
-import { getQuests, joinQuest, leaveQuest } from '@/shared/api/api';
+import { QuestSearch } from '@/features/map/ui/QuestSearch';
+import { useClaimQuest, useQuest, useQuests } from '@/shared/api/queries';
 import { CATEGORIES } from '@/shared/categories';
 import type { Category, Quest } from '@/shared/types';
+import { ICONS } from '@/shared/icons';
+import { GLASS } from '@/shared/ui/glass';
+import { Icon } from '@/shared/ui/Icon';
 
 // WebGL does not exist on the server (§4.7)
 const CityMap = dynamic(() => import('@/features/map/CityMap').then((m) => m.CityMap), {
@@ -15,25 +20,48 @@ const CityMap = dynamic(() => import('@/features/map/CityMap').then((m) => m.Cit
 
 const ALL_CATEGORIES = Object.keys(CATEGORIES) as Category[];
 
+// useSearchParams needs a Suspense boundary in Next.js
 export default function MapPage() {
-  const [quests, setQuests] = useState<Quest[]>([]);
+  return (
+    <Suspense fallback={null}>
+      <MapScreen />
+    </Suspense>
+  );
+}
+
+function MapScreen() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: allQuests = [] } = useQuests();
+  const claim = useClaimQuest();
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]); // [] = all
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(true);
 
+  // /map?quest=id (e.g. «На мапі» on /quests) opens that quest. Next keeps this page alive between
+  // visits (cacheComponents), so every new param is handled here, not only the one present on mount.
+  const questParam = searchParams.get('quest');
+  const [handledParam, setHandledParam] = useState<string | null>(null);
+  if (questParam !== handledParam) {
+    setHandledParam(questParam);
+    if (questParam) {
+      setSelectedId(questParam);
+      setPanelOpen(true);
+    }
+  }
+  // drop the param once handled, so opening the same quest again later is a new param
   useEffect(() => {
-    let cancelled = false;
-    getQuests().then((data) => {
-      if (!cancelled) setQuests(data);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (questParam) router.replace('/map', { scroll: false });
+  }, [questParam, router]);
 
+  // finished / cancelled quests are history, not map points
+  const quests = allQuests.filter((q) => q.status === 'open' || q.status === 'full');
   const filteredQuests =
     selectedCategories.length === 0 ? quests : quests.filter((q) => selectedCategories.includes(q.category));
   const selectedQuest = filteredQuests.find((q) => q.id === selectedId) ?? null;
+  // full card from GET /quests/{id}; the list item is shown until it arrives
+  const { data: details } = useQuest(selectedQuest?.id ?? null);
+  const panelQuest = selectedQuest && details?.id === selectedQuest.id ? details : selectedQuest;
 
   function applyCategories(next: Category[]) {
     setSelectedCategories(next);
@@ -50,16 +78,16 @@ export default function MapPage() {
     );
   }
 
-  async function updateParticipation(action: (id: string) => Promise<void>, id: string) {
-    setPending(true);
-    try {
-      await action(id);
-      setQuests(await getQuests());
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setPending(false);
-    }
+  /** Pin, list row or search result picked: select it (camera flies to it) and show its details. */
+  function selectQuest(quest: Quest) {
+    setSelectedId(quest.id);
+    setPanelOpen(true);
+  }
+
+  /** Search result picked: make sure the filter shows it first. */
+  function pickQuest(quest: Quest) {
+    if (selectedCategories.length > 0 && !selectedCategories.includes(quest.category)) setSelectedCategories([]);
+    selectQuest(quest);
   }
 
   return (
@@ -67,13 +95,16 @@ export default function MapPage() {
       <CityMap
         quests={filteredQuests}
         selectedId={selectedId}
-        onSelect={(quest) => setSelectedId(quest.id)}
+        panelOpen={panelOpen}
+        onSelect={selectQuest}
         onClose={() => setSelectedId(null)}
       />
 
-      {/* pointer-events-none: the map stays draggable between the chips */}
-      <nav className="pointer-events-none fixed inset-x-0 top-0 z-20 flex h-16 items-center gap-2 px-4">
+      {/* pointer-events-none: the map stays draggable between the chips.
+          z-30 > QuestPanel's z-20, so the search dropdown opens over the panel */}
+      <nav className="pointer-events-none fixed inset-x-0 top-0 z-30 flex h-16 items-center gap-2 px-4">
         <FilterChip active={selectedCategories.length === 0} onClick={() => applyCategories([])}>
+          <Icon src={ICONS.allCategories} />
           Всі
         </FilterChip>
         {ALL_CATEGORIES.map((category) => (
@@ -82,18 +113,25 @@ export default function MapPage() {
             active={selectedCategories.includes(category)}
             onClick={() => toggleCategory(category)}
           >
-            {CATEGORIES[category].emoji} {CATEGORIES[category].label}{' '}
-            <span className="opacity-60">{quests.filter((q) => q.category === category).length}</span>
+            <Icon src={CATEGORIES[category].icon} />
+            {CATEGORIES[category].label}
+            <span className="text-white/60">{quests.filter((q) => q.category === category).length}</span>
           </FilterChip>
         ))}
+        <div className="ml-auto">
+          <QuestSearch quests={quests} onPick={pickQuest} />
+        </div>
       </nav>
 
       <QuestPanel
-        quest={selectedQuest}
-        onClose={() => setSelectedId(null)}
-        onJoin={(id) => updateParticipation(joinQuest, id)}
-        onLeave={(id) => updateParticipation(leaveQuest, id)}
-        pending={pending}
+        quests={filteredQuests}
+        quest={panelQuest}
+        open={panelOpen}
+        onOpenChange={setPanelOpen}
+        onSelect={selectQuest}
+        onBack={() => setSelectedId(null)}
+        onClaim={(id) => claim.mutate(id)}
+        pending={claim.isPending}
       />
     </main>
   );
@@ -113,7 +151,7 @@ function FilterChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`pointer-events-auto cursor-pointer rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap shadow-md transition-colors ${active ? 'bg-slate-900 text-white' : 'bg-white/90 text-slate-800 hover:bg-white'}`}
+      className={`pointer-events-auto flex h-10 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors ${GLASS} ${active ? 'bg-indigo-500! ring-indigo-300/40!' : 'hover:bg-[#25314f]/90'}`}
     >
       {children}
     </button>
