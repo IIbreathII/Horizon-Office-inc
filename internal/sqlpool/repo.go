@@ -53,7 +53,7 @@ func (r *UserRepository) CreateUser(
 
 	var id int64
 	err := r.pool.QueryRow(
-		ctx, query, "none", email, username, passwordHash, role,
+		ctx, query, nil, email, username, passwordHash, role,
 	).Scan(&id)
 
 	return id, err

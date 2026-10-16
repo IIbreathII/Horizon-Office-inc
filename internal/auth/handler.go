@@ -6,6 +6,7 @@ import (
 	"Horizon/internal/sqlpool"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/jackc/pgx/v5"
@@ -13,41 +14,67 @@ import (
 	"google.golang.org/api/idtoken"
 )
 
-var h *sqlpool.UserRepository
+type AuthHandler struct {
+	repo *sqlpool.UserRepository
+}
 
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
+func NewAuthHandler(repo *sqlpool.UserRepository) *AuthHandler {
+	return &AuthHandler{repo: repo}
+}
+
+func (h *AuthHandler) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	var req models.LoginRequest
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Неправильний формат JSON", http.StatusBadRequest)
 		return
 	}
 
-	user, err := h.GetUserByEmail(r.Context(), req.Email)
+	if req.Email == "" || req.Password == "" {
+		http.Error(w, "Вкажіть email і пароль", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.repo.GetUserByEmail(r.Context(), req.Email)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, "Неправильний email чи пароль", http.StatusUnauthorized)
+		} else {
+			log.Printf("Get user by email failed: %v", err)
+			http.Error(w, "Внутрішня помилка сервера", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	if user.Password == "" {
+		http.Error(w, "Цей акаунт створено через Google. Використовуйте вхід через Google.", http.StatusForbidden)
+		return
+	}
+
+	if err := bcrypt.CompareHashAndPassword(
+		[]byte(user.Password),
+		[]byte(req.Password),
+	); err != nil {
 		http.Error(w, "Неправильний email чи пароль", http.StatusUnauthorized)
 		return
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
-	if err != nil {
-		http.Error(w, "Неправильний пароль чи email", http.StatusUnauthorized)
-		return
-	}
+
 	token, err := GenerateToken(user.Id, user.Status)
 	if err != nil {
+		log.Printf("Generate token failed: %v", err)
 		http.Error(w, "Помилка генерації токену", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "success",
 		"user_id": user.Id,
 		"role":    user.Status,
 		"token":   token,
 	})
 }
-
-func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	var req models.RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Неправильний формат JSON", http.StatusBadRequest)
@@ -69,7 +96,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Помилка сервера при обробці пароля", http.StatusInternalServerError)
 		return
 	}
-	userID, err := h.CreateUser(r.Context(), req.Email, req.Username, string(hashedPassword), req.Role)
+	userID, err := h.repo.CreateUser(r.Context(), req.Email, req.Username, string(hashedPassword), req.Role)
 	if err != nil {
 		http.Error(w, "Користувач с таким email чи username вже існує", http.StatusConflict)
 		return
@@ -77,6 +104,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	token, err := GenerateToken(userID, req.Role)
 	if err != nil {
+		log.Printf("Generate token failed: %v", err)
 		http.Error(w, "Генерація токену не пройшла успешно", http.StatusInternalServerError)
 		return
 	}
@@ -90,7 +118,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func GoogleAuthHandler(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) GoogleAuthHandler(w http.ResponseWriter, r *http.Request) {
 	var req models.GoogleAuthRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Неправильний формат JSON", http.StatusBadRequest)
@@ -110,56 +138,58 @@ func GoogleAuthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	googleID := payload.Subject
+
 	email, ok := payload.Claims["email"].(string)
 	if !ok || email == "" {
 		http.Error(w, "Google token does not contain email", http.StatusUnauthorized)
 		return
 	}
 
-	name, _ := payload.Claims["name"].(string)
-	user, err := h.GetUserByGoogleID(r.Context(), googleID)
-
-	var userID int64
-	var role string
-	switch {
-	case err == nil:
-		userID = user.Id
-		role = user.Status
-	case errors.Is(err, pgx.ErrNoRows):
-		userID, err = h.CreateGoogleUser(r.Context(), googleID, email, name, role)
-	default:
-		http.Error(w, "Помилка сервера", http.StatusInternalServerError)
+	emailVerified, ok := payload.Claims["email_verified"].(bool)
+	if !ok || !emailVerified {
+		http.Error(w, "Google email is not verified", http.StatusUnauthorized)
 		return
 	}
 
-	if err != nil {
+	name, _ := payload.Claims["name"].(string)
+
+	user, err := h.repo.GetUserByGoogleID(r.Context(), googleID)
+
+	var userID int64
+	var role string
+
+	if err == nil {
+		userID = user.Id
+		role = user.Status
+	} else if errors.Is(err, pgx.ErrNoRows) {
 		role = req.Role
 		if role != "volunteer" && role != "organization" {
 			role = "volunteer"
 		}
 
-		userID, err = h.CreateGoogleUser(r.Context(), googleID, email, name, role)
+		userID, err = h.repo.CreateGoogleUser(
+			r.Context(), googleID, email, name, role,
+		)
 		if err != nil {
+			log.Printf("Create Google user failed: %v", err)
 			http.Error(w, "Помилка збереження в БД", http.StatusInternalServerError)
 			return
 		}
 	} else {
-		userID = user.Id
-		role = user.Status
+		log.Printf("Get Google user failed: %v", err)
+		http.Error(w, "Внутрішня помилка сервера", http.StatusInternalServerError)
+		return
 	}
 
-	token, err := GenerateToken(userID, req.Role)
+	token, err := GenerateToken(userID, role)
 	if err != nil {
-		http.Error(
-			w,
-			"Помилка генерації токену",
-			http.StatusInternalServerError,
-		)
+		log.Printf("Generate token failed: %v", err)
+		http.Error(w, "Помилка генерації токену", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "success",
 		"user_id": userID,
 		"role":    role,

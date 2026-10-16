@@ -26,11 +26,16 @@ func main() {
 	dsn := cfg.RequiredEnv("DATABASE_URL")
 	pool, err := db.Connect(context.Background(), dsn)
 	if err != nil {
-		log.Println("Підключення не знайдено", err)
+		log.Fatalf("Підключення не встановлено: %v", err)
 	}
 	defer pool.Close()
 
-	users := sqlpool.NewUserRepository(db.Pool)
+	repo := sqlpool.NewUserRepository(pool)
+	authHandler := auth.NewAuthHandler(repo)
+	jwtSecret := cfg.RequiredEnv("JWT_SECRET")
+	if jwtSecret == "" {
+		log.Fatal("Критична помилка: JWT_SECRET не заданий")
+	}
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -41,10 +46,10 @@ func main() {
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	}))
-	r.Route("/api/v1/auth", func(r chi.Router) {
-		r.Post("/login", auth.LoginHandler)
-		r.Post("/register", auth.RegisterHandler)
-		r.Post("/google", auth.GoogleAuthHandler)
+	r.Route("/api/auth", func(r chi.Router) {
+		r.Post("/login", authHandler.LoginHandler)
+		r.Post("/register", authHandler.RegisterHandler)
+		r.Post("/google", authHandler.GoogleAuthHandler)
 	})
 
 	server := &http.Server{
