@@ -28,19 +28,15 @@ func main() {
 	r.Use(middleware.Recoverer)
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://localhost:3000"},
+		AllowedOrigins:   []string{"http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	}))
-
-	r.Route("/api", func(r chi.Router) {
-
-		r.Post("/api/v1/auth/login", auth.LoginHandler)
-
-	})
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Post("/api/v1/auth/login", auth.LoginHandler)
 		r.Post("/auth/register", auth.RegisterHandler)
+		r.Post("/auth/google", auth.GoogleAuthHandler)
 	})
 
 	log.Println("Сервер запущений на порті 8080")

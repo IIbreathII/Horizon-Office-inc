@@ -5,8 +5,10 @@ import (
 	"Horizon/internal/sqlpool"
 	"encoding/json"
 	"net/http"
+	"os"
 
 	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/api/idtoken"
 )
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +55,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Role != "volunteer" && req.Role != "oorganization" {
+	if req.Role != "volunteer" && req.Role != "organization" {
 		http.Error(w, "Неправильна роль", http.StatusBadRequest)
 		return
 	}
@@ -76,6 +78,61 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "success",
 		"user_id": userID,
+		"token":   token,
+	})
+}
+
+func GoogleAuthHandler(w http.ResponseWriter, r *http.Request) {
+	var req models.GoogleAuthRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Неправильний формат JSON", http.StatusBadRequest)
+		return
+	}
+
+	clientID := os.Getenv("CLIENT_ID")
+	if clientID == "" {
+		http.Error(w, "Помилка конфігурації сервера", http.StatusInternalServerError)
+		return
+	}
+
+	payload, err := idtoken.Validate(r.Context(), req.Token, clientID)
+	if err != nil {
+		http.Error(w, "Невалідний токен Google", http.StatusUnauthorized)
+		return
+	}
+
+	googleID := payload.Subject
+	email := payload.Claims["email"].(string)
+	name := payload.Claims["name"].(string)
+
+	// 3. Ищем в базе: старый юзер или новый?
+	user, err := sqlpool.GetUserByGoogleID(r.Context(), googleID)
+	var userID int64
+	var role string
+
+	if err != nil {
+		role = req.Role
+		if role != "volunteer" && role != "organization" {
+			role = "volunteer" // Дефолт, если фронт забыл прислать
+		}
+
+		userID, err = sqlpool.CreateGoogleUser(r.Context(), googleID, email, name, role)
+		if err != nil {
+			http.Error(w, "Помилка збереження в БД", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		userID = user.Id
+		role = user.Status
+	}
+
+	token, _ := GenerateToken(userID, role)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":  "success",
+		"user_id": userID,
+		"role":    role,
 		"token":   token,
 	})
 }

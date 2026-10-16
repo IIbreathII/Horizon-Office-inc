@@ -79,3 +79,8 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 	Role     string `json:"role"`
 }
+
+type GoogleAuthRequest struct {
+	Token string `json:"token"`
+	Role  string `json:"role,omitempty"`
+}
