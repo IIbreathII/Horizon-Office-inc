@@ -87,6 +87,30 @@ const PATHS = {
     </>
   ),
   star: <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />,
+  arrowLeft: <path d="M19 12H5M11 6l-6 6 6 6" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  pencil: (
+    <>
+      <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z" />
+      <path d="m13.5 6.5 4 4" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M4 7h16M10 11v6M14 11v6M9 7V4.5h6V7" />
+      <path d="M6 7l1 13h10l1-13" />
+    </>
+  ),
+  play: <path d="M8 5.5v13l10.5-6.5z" />,
+  flag: <path d="M5 21V4M5 4h11l-2 4 2 4H5" />,
+  x: <path d="M6 6l12 12M18 6 6 18" />,
+  building: (
+    <>
+      <rect x="4.5" y="3.5" width="11" height="17" rx="1.5" />
+      <path d="M15.5 9.5h3a1 1 0 0 1 1 1v10h-4M8 7.5h1M11 7.5h1M8 11h1M11 11h1M8 14.5h1M11 14.5h1M9 20.5v-3h2v3" />
+    </>
+  ),
+  list: <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />,
 } as const;
 
 export type LineIconName = keyof typeof PATHS;

@@ -28,6 +28,12 @@ export const BUTTON_PRIMARY = `${BUTTON_BASE} ${ACCENT_FILL} hover:bg-yellow-200
 
 export const BUTTON_GHOST = `${BUTTON_BASE} border border-white/20 bg-white/[0.06] text-white hover:border-amber-400/60 hover:bg-white/10`;
 
+/** Destructive action (delete, reject, cancel). */
+export const BUTTON_DANGER = `${BUTTON_BASE} border border-rose-400/50 bg-rose-500/[0.06] text-rose-300 hover:border-rose-300/80 hover:bg-rose-500/15`;
+
+/** Compact size modifier for any button above (rows, toolbars). */
+export const BUTTON_SM = 'gap-1.5! px-3! py-1.5! text-xs!';
+
 /** Muted look for a button that cannot be used (no opacity tricks). */
 export const BUTTON_DISABLED = `${BUTTON_BASE} cursor-not-allowed border border-white/[0.08] bg-white/[0.04] font-medium text-neutral-500`;
 
@@ -39,13 +45,14 @@ export const tileStyle = (color: string): CSSProperties => ({
   boxShadow: `inset 0 0 0 1px ${color}d9, 0 0 16px -4px ${color}`,
 });
 
-export type StatusTone = 'joined' | 'completed' | 'full' | 'available';
+export type StatusTone = 'joined' | 'completed' | 'full' | 'available' | 'danger';
 
 export const STATUS_CHIP: Record<StatusTone, string> = {
   joined: `${BADGE} bg-amber-300/20 text-amber-200 ring-1 ring-amber-300/80 shadow-[0_0_12px_-3px_rgba(252,211,77,0.6)]`,
   completed: `${BADGE} bg-emerald-300/20 text-emerald-200 ring-1 ring-emerald-300/80 shadow-[0_0_12px_-3px_rgba(110,231,183,0.6)]`,
   full: `${BADGE} bg-white/[0.06] text-neutral-400 ring-1 ring-white/15`,
   available: `${BADGE} bg-white/10 text-white ring-1 ring-white/40`,
+  danger: `${BADGE} bg-rose-500/15 text-rose-300 ring-1 ring-rose-400/60`,
 };
 
 /** Accent text and icon color (titles, section icons, links). */
