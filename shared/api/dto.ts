@@ -19,6 +19,7 @@ export interface ProfileDto {
   cur_level: number;
 }
 
+/** GET /organizations (ASSUMED endpoint: not in the API yet) */
 export interface OrganizationDto {
   user_id: Id;
   organization_name: string;

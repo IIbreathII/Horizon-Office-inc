@@ -3,10 +3,11 @@
 //
 // Going live: set NEXT_PUBLIC_API_URL (e.g. in .env.local) → real requests to `${URL}/api/v1/...`.
 // While it is unset, the in-memory mock backend (mock.ts) answers with the same DTO shapes.
-import type { InventoryItem, Me, Quest, Reward } from '@/shared/types';
+import type { InventoryItem, Me, Organization, Quest, Reward } from '@/shared/types';
 import type {
   CompleteProfileRequest,
   CreateQuestRequest,
+  OrganizationDto,
   ProfileDto,
   QuestClaimDto,
   QuestDto,
@@ -14,7 +15,7 @@ import type {
   UserRewardDto,
 } from './dto';
 import { http } from './http';
-import { toInventoryItem, toMe, toQuest, toReward } from './mappers';
+import { toInventoryItem, toMe, toOrganization, toQuest, toReward } from './mappers';
 import { mockApi } from './mock';
 
 const USE_MOCK = !process.env.NEXT_PUBLIC_API_URL;
@@ -23,6 +24,7 @@ export const ENDPOINTS = {
   profiles: '/profiles',
   me: '/profiles/me',
   inventory: '/profiles/me/inventory',
+  organizations: '/organizations', // ASSUMED: not in the API yet
   quests: '/quests',
   quest: (id: string) => `/quests/${id}`,
   claimQuest: (id: string) => `/quests/${id}/claim`,
@@ -54,6 +56,14 @@ export async function getMe(): Promise<Me> {
 export async function getInventory(): Promise<InventoryItem[]> {
   const dtos = USE_MOCK ? await mockApi.getInventory() : await http<UserRewardDto[]>(ENDPOINTS.inventory);
   return dtos.map(toInventoryItem);
+}
+
+// ---------- organizations ----------
+
+/** GET /organizations — all organizations (filter on the map). ASSUMED endpoint. */
+export async function getOrganizations(): Promise<Organization[]> {
+  const dtos = USE_MOCK ? await mockApi.getOrganizations() : await http<OrganizationDto[]>(ENDPOINTS.organizations);
+  return dtos.map(toOrganization);
 }
 
 // ---------- quests ----------

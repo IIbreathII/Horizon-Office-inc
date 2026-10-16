@@ -29,11 +29,13 @@ export function QuestBoard() {
       {COLUMNS.map((column) => {
         const items = quests.filter(column.filter);
         return (
-          <section key={column.title} className="flex flex-col gap-3">
-            <h2 className="font-semibold">
+          <section key={column.title} className="flex flex-col gap-4">
+            <h2 className="text-lg font-semibold">
               {column.title} ({items.length})
             </h2>
-            {items.length === 0 && <p className="text-sm text-gray-500">{column.empty}</p>}
+            {items.length === 0 && (
+              <p className="rounded-2xl border border-dashed border-gray-300 px-5 py-8 text-center text-sm text-gray-500">{column.empty}</p>
+            )}
             {items.map((quest) => (
               <QuestCard key={quest.id} quest={quest} />
             ))}

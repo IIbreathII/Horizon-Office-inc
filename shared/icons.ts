@@ -9,4 +9,5 @@ export const ICONS = {
     profile: '/icons/nav/profile.svg',
   },
   coin: '/icons/ui/coin.svg',
+  close: '/icons/ui/close.svg',
 };

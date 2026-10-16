@@ -228,6 +228,12 @@ export const mockApi = {
     return copy(userRewards.filter((r) => r.volunteer_id === me.id).map(userRewardDto));
   },
 
+  /** GET /organizations (ASSUMED endpoint) */
+  async getOrganizations(): Promise<OrganizationDto[]> {
+    await delay();
+    return copy(organizations);
+  },
+
   /** GET /quests?lat&lng&radius (radius in meters) */
   async getQuests(lat: number, lng: number, radius: number): Promise<QuestDto[]> {
     await delay();

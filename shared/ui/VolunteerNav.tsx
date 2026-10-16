@@ -33,7 +33,7 @@ export function VolunteerNav() {
             aria-label={link.label}
             title={link.label}
             aria-current={active ? 'page' : undefined}
-            className={`flex size-10 items-center justify-center rounded-full transition-colors ${active ? 'bg-indigo-500' : 'hover:bg-white/10'}`}
+            className={`flex size-10 items-center justify-center rounded-full transition-colors ${active ? 'bg-[#228fff]' : 'hover:bg-white/10'}`}
           >
             <Icon src={link.icon} className="size-5" />
           </Link>

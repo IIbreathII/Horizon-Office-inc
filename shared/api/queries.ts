@@ -1,6 +1,6 @@
 // TanStack Query hooks over api.ts: caching, loading states and invalidation after mutations.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { buyReward, claimQuest, getInventory, getMe, getQuest, getQuests, getRewards, type QuestArea } from './api';
+import { buyReward, claimQuest, getInventory, getMe, getOrganizations, getQuest, getQuests, getRewards, type QuestArea } from './api';
 
 /** The whole city of Dnipro (center of the city frame, radius covering it). */
 export const CITY_AREA: QuestArea = { lat: 48.462, lng: 34.996, radius: 25_000 };
@@ -8,6 +8,7 @@ export const CITY_AREA: QuestArea = { lat: 48.462, lng: 34.996, radius: 25_000 }
 export const queryKeys = {
   me: ['me'] as const,
   inventory: ['inventory'] as const,
+  organizations: ['organizations'] as const,
   quests: ['quests'] as const,
   questsIn: (area: QuestArea) => ['quests', area] as const,
   quest: (id: string) => ['quest', id] as const,
@@ -17,6 +18,8 @@ export const queryKeys = {
 export const useMe = () => useQuery({ queryKey: queryKeys.me, queryFn: getMe });
 
 export const useInventory = () => useQuery({ queryKey: queryKeys.inventory, queryFn: getInventory });
+
+export const useOrganizations = () => useQuery({ queryKey: queryKeys.organizations, queryFn: getOrganizations });
 
 export const useQuests = (area: QuestArea = CITY_AREA) =>
   useQuery({ queryKey: queryKeys.questsIn(area), queryFn: () => getQuests(area) });

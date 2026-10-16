@@ -110,6 +110,7 @@ The URL alone is enough only if the backend matches these expectations:
    - `quest_claims.quest_id` is a single id (the DB diagram shows `int[]`);
    - an inventory item includes the embedded `reward` (name, partner);
    - profile includes `role`;
+   - `GET /organizations` exists and returns `organizations` rows (map filter by organization);
    - `radius` is in meters;
    - claim returns the claim, buy returns the new inventory row (`user_rewards` row).
 

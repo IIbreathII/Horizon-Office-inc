@@ -38,7 +38,7 @@ export function QuestPanel({ quests, quest, open, onOpenChange, onSelect, onBack
       <button
         type="button"
         onClick={() => onOpenChange(true)}
-        className={`fixed top-16 right-4 z-20 h-10 cursor-pointer rounded-full px-4 text-sm font-medium hover:bg-[#25314f]/90 ${GLASS}`}
+        className={`fixed top-16 right-4 z-20 h-10 cursor-pointer rounded-full px-4 text-sm font-medium hover:bg-neutral-800/90 ${GLASS}`}
       >
         Квести · {quests.length}
       </button>
@@ -48,20 +48,15 @@ export function QuestPanel({ quests, quest, open, onOpenChange, onSelect, onBack
   return (
     <aside className={`fixed top-16 right-4 bottom-4 z-20 flex w-72 flex-col overflow-hidden rounded-2xl ${GLASS}`}>
       <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-white/10 pr-2 pl-4">
-        {quest ? (
-          <button type="button" onClick={onBack} className="cursor-pointer text-sm text-white/80 hover:text-white">
-            ← Назад
-          </button>
-        ) : (
-          <h2 className="text-sm font-semibold">Квести ({quests.length})</h2>
-        )}
+        <h2 className="text-sm font-semibold">{quest ? 'Деталі квесту' : `Квести (${quests.length})`}</h2>
+        {/* one cross: closes the quest details first, then hides the panel */}
         <button
           type="button"
-          onClick={() => onOpenChange(false)}
-          aria-label="Сховати панель"
-          className="cursor-pointer rounded-full px-2 py-1 text-lg leading-none text-white/60 hover:bg-white/10 hover:text-white"
+          onClick={quest ? onBack : () => onOpenChange(false)}
+          aria-label={quest ? 'Назад до списку' : 'Сховати панель'}
+          className="cursor-pointer rounded-full p-2 opacity-60 hover:bg-white/10 hover:opacity-100"
         >
-          »
+          <Icon src={ICONS.close} className="size-3.5" />
         </button>
       </header>
 
@@ -155,7 +150,7 @@ function QuestDetails({ quest, onClaim, pending }: { quest: Quest; onClaim: (id:
           Місць немає
         </ActionButton>
       ) : (
-        <ActionButton pending={pending} onClick={() => onClaim(quest.id)} className="bg-indigo-500 text-white hover:bg-indigo-400">
+        <ActionButton pending={pending} onClick={() => onClaim(quest.id)} className="bg-[#228fff] text-white hover:bg-[#4da5ff]">
           Записатися
         </ActionButton>
       )}

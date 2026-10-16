@@ -1,8 +1,8 @@
 // Backend DTO → frontend domain model. When the API changes, fix the mapping here.
 import { CATEGORIES } from '@/shared/categories';
 import { levelProgress } from '@/shared/levels';
-import type { Category, InventoryItem, Me, ParticipationStatus, Quest, Reward } from '@/shared/types';
-import type { ProfileDto, QuestClaimDto, QuestDto, RewardDto, UserRewardDto } from './dto';
+import type { Category, InventoryItem, Me, Organization, ParticipationStatus, Quest, Reward } from '@/shared/types';
+import type { OrganizationDto, ProfileDto, QuestClaimDto, QuestDto, RewardDto, UserRewardDto } from './dto';
 
 const CLAIM_STATUS: Record<string, ParticipationStatus> = {
   claimed: 'joined',
@@ -48,6 +48,18 @@ export function toQuest(dto: QuestDto): Quest {
       logoUrl: dto.organization?.logo ?? undefined,
     },
     myParticipation: toParticipation(dto.claim),
+  };
+}
+
+export function toOrganization(dto: OrganizationDto): Organization {
+  return {
+    id: String(dto.user_id),
+    name: dto.organization_name,
+    type: dto.types,
+    description: dto.description,
+    logoUrl: dto.logo,
+    contacts: dto.contact,
+    trustScore: dto.trust_score,
   };
 }
 

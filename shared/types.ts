@@ -28,6 +28,16 @@ export interface Quest {
   myParticipation: { claimId: string; status: ParticipationStatus } | null; // for the current user
 }
 
+export interface Organization {
+  id: string;
+  name: string;
+  type: string | null;            // e.g. 'ngo', 'charity'
+  description: string | null;
+  logoUrl: string | null;
+  contacts: string[];
+  trustScore: number | null;      // 0–5
+}
+
 export interface Me {
   id: string;
   role: Role;

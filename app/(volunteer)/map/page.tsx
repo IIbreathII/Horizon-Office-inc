@@ -2,10 +2,11 @@
 
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { OrganizationPanel } from '@/features/map/ui/OrganizationPanel';
 import { QuestPanel } from '@/features/map/ui/QuestPanel';
-import { QuestSearch } from '@/features/map/ui/QuestSearch';
-import { useClaimQuest, useQuest, useQuests } from '@/shared/api/queries';
+import { matchesSearch, QuestSearch } from '@/features/map/ui/QuestSearch';
+import { useClaimQuest, useOrganizations, useQuest, useQuests } from '@/shared/api/queries';
 import { CATEGORIES } from '@/shared/categories';
 import type { Category, Quest } from '@/shared/types';
 import { ICONS } from '@/shared/icons';
@@ -33,10 +34,23 @@ function MapScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: allQuests = [] } = useQuests();
+  const { data: organizations = [] } = useOrganizations();
   const claim = useClaimQuest();
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]); // [] = all
+  const [selectedOrgs, setSelectedOrgs] = useState<string[]>([]); // [] = all
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [orgPanelOpen, setOrgPanelOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Typing a search shows its results: the quest list, panel open
+  const search = useCallback((query: string) => {
+    setSearchQuery(query);
+    if (query) {
+      setSelectedId(null);
+      setPanelOpen(true);
+    }
+  }, []);
 
   // /map?quest=id (e.g. «На мапі» on /quests) opens that quest. Next keeps this page alive between
   // visits (cacheComponents), so every new param is handled here, not only the one present on mount.
@@ -56,8 +70,17 @@ function MapScreen() {
 
   // finished / cancelled quests are history, not map points
   const quests = allQuests.filter((q) => q.status === 'open' || q.status === 'full');
-  const filteredQuests =
-    selectedCategories.length === 0 ? quests : quests.filter((q) => selectedCategories.includes(q.category));
+  const matchesCategory = (q: Quest, categories = selectedCategories) =>
+    categories.length === 0 || categories.includes(q.category);
+  const matchesOrg = (q: Quest, orgs = selectedOrgs) => orgs.length === 0 || orgs.includes(q.organization.id);
+  const filteredQuests = quests.filter((q) => matchesCategory(q) && matchesOrg(q));
+  // each filter's counts follow the other filter
+  const orgQuestCounts: Record<string, number> = {};
+  for (const q of quests) {
+    if (matchesCategory(q)) orgQuestCounts[q.organization.id] = (orgQuestCounts[q.organization.id] ?? 0) + 1;
+  }
+  // the search narrows only the panel list; the map keeps showing all filtered quests
+  const listedQuests = filteredQuests.filter((q) => matchesSearch(q, searchQuery));
   const selectedQuest = filteredQuests.find((q) => q.id === selectedId) ?? null;
   // full card from GET /quests/{id}; the list item is shown until it arrives
   const { data: details } = useQuest(selectedQuest?.id ?? null);
@@ -67,7 +90,13 @@ function MapScreen() {
     setSelectedCategories(next);
     // Close the panel if the selected quest gets filtered out
     const selected = quests.find((q) => q.id === selectedId);
-    if (selected && next.length > 0 && !next.includes(selected.category)) setSelectedId(null);
+    if (selected && !matchesCategory(selected, next)) setSelectedId(null);
+  }
+
+  function applyOrgs(next: string[]) {
+    setSelectedOrgs(next);
+    const selected = quests.find((q) => q.id === selectedId);
+    if (selected && !matchesOrg(selected, next)) setSelectedId(null);
   }
 
   function toggleCategory(category: Category) {
@@ -84,11 +113,6 @@ function MapScreen() {
     setPanelOpen(true);
   }
 
-  /** Search result picked: make sure the filter shows it first. */
-  function pickQuest(quest: Quest) {
-    if (selectedCategories.length > 0 && !selectedCategories.includes(quest.category)) setSelectedCategories([]);
-    selectQuest(quest);
-  }
 
   return (
     <main className="relative h-dvh w-full overflow-hidden">
@@ -101,7 +125,7 @@ function MapScreen() {
       />
 
       {/* pointer-events-none: the map stays draggable between the chips.
-          z-30 > QuestPanel's z-20, so the search dropdown opens over the panel */}
+          z-30 keeps the bar above the side panels */}
       <nav className="pointer-events-none fixed inset-x-0 top-0 z-30 flex h-16 items-center gap-2 px-4">
         <FilterChip active={selectedCategories.length === 0} onClick={() => applyCategories([])}>
           <Icon src={ICONS.allCategories} />
@@ -115,16 +139,25 @@ function MapScreen() {
           >
             <Icon src={CATEGORIES[category].icon} />
             {CATEGORIES[category].label}
-            <span className="text-white/60">{quests.filter((q) => q.category === category).length}</span>
+            <span className="text-white/60">{quests.filter((q) => q.category === category && matchesOrg(q)).length}</span>
           </FilterChip>
         ))}
         <div className="ml-auto">
-          <QuestSearch quests={quests} onPick={pickQuest} />
+          <QuestSearch onSearch={search} />
         </div>
       </nav>
 
+      <OrganizationPanel
+        organizations={organizations}
+        selected={selectedOrgs}
+        onChange={applyOrgs}
+        questCounts={orgQuestCounts}
+        open={orgPanelOpen}
+        onOpenChange={setOrgPanelOpen}
+      />
+
       <QuestPanel
-        quests={filteredQuests}
+        quests={listedQuests}
         quest={panelQuest}
         open={panelOpen}
         onOpenChange={setPanelOpen}
@@ -151,7 +184,7 @@ function FilterChip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`pointer-events-auto flex h-10 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors ${GLASS} ${active ? 'bg-indigo-500! ring-indigo-300/40!' : 'hover:bg-[#25314f]/90'}`}
+      className={`pointer-events-auto flex h-10 cursor-pointer items-center gap-2 rounded-full px-4 text-sm font-medium whitespace-nowrap transition-colors ${GLASS} ${active ? 'bg-[#228fff]! ring-[#228fff]/40!' : 'hover:bg-neutral-800/90'}`}
     >
       {children}
     </button>
