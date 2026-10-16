@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
+import { CategoryDropdown } from '@/features/map/ui/CategoryDropdown';
 import { OrganizationPanel } from '@/features/map/ui/OrganizationPanel';
 import { QuestPanel } from '@/features/map/ui/QuestPanel';
 import { matchesSearch, QuestSearch } from '@/features/map/ui/QuestSearch';
@@ -99,6 +100,11 @@ function MapScreen() {
     if (selected && !matchesOrg(selected, next)) setSelectedId(null);
   }
 
+  // chip / dropdown counts follow the organization filter
+  const categoryCounts = Object.fromEntries(
+    ALL_CATEGORIES.map((category) => [category, quests.filter((q) => q.category === category && matchesOrg(q)).length]),
+  ) as Record<Category, number>;
+
   function toggleCategory(category: Category) {
     applyCategories(
       selectedCategories.includes(category)
@@ -126,23 +132,35 @@ function MapScreen() {
 
       {/* pointer-events-none: the map stays draggable between the chips.
           z-30 keeps the bar above the side panels */}
-      <nav className="pointer-events-none fixed inset-x-0 top-0 z-30 flex h-16 items-center gap-2 px-4">
-        <FilterChip active={selectedCategories.length === 0} onClick={() => applyCategories([])}>
-          <Icon src={ICONS.allCategories} />
-          Всі
-        </FilterChip>
-        {ALL_CATEGORIES.map((category) => (
-          <FilterChip
-            key={category}
-            active={selectedCategories.includes(category)}
-            onClick={() => toggleCategory(category)}
-          >
-            <Icon src={CATEGORIES[category].icon} />
-            {CATEGORIES[category].label}
-            <span className="text-white/60">{quests.filter((q) => q.category === category && matchesOrg(q)).length}</span>
+      <nav className="pointer-events-none fixed inset-x-0 top-0 z-30 flex h-16 items-center gap-2 px-3 sm:px-4">
+        {/* wide screens: a row of chips; narrower: the same filter in a dropdown */}
+        <div className="hidden items-center gap-2 xl:flex">
+          <FilterChip active={selectedCategories.length === 0} onClick={() => applyCategories([])}>
+            <Icon src={ICONS.allCategories} />
+            Всі
           </FilterChip>
-        ))}
-        <div className="ml-auto">
+          {ALL_CATEGORIES.map((category) => (
+            <FilterChip
+              key={category}
+              active={selectedCategories.includes(category)}
+              onClick={() => toggleCategory(category)}
+            >
+              <Icon src={CATEGORIES[category].icon} />
+              {CATEGORIES[category].label}
+              <span className="text-white/60">{categoryCounts[category]}</span>
+            </FilterChip>
+          ))}
+        </div>
+        <div className="xl:hidden">
+          <CategoryDropdown
+            categories={ALL_CATEGORIES}
+            selected={selectedCategories}
+            counts={categoryCounts}
+            onToggle={toggleCategory}
+            onReset={() => applyCategories([])}
+          />
+        </div>
+        <div className="ml-auto min-w-0 flex-1 sm:flex-none">
           <QuestSearch onSearch={search} />
         </div>
       </nav>

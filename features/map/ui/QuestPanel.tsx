@@ -48,7 +48,8 @@ export function QuestPanel({ quests, quest, open, onOpenChange, onSelect, onBack
   }
 
   return (
-    <aside className={`fixed top-16 right-4 bottom-4 z-20 flex w-72 flex-col overflow-hidden rounded-2xl ${GLASS}`}>
+    // phones: a bottom sheet above the nav bar; sm+: a side panel on the right
+    <aside className={`fixed inset-x-3 bottom-20 z-20 flex max-h-[50dvh] flex-col overflow-hidden rounded-2xl sm:inset-x-auto sm:top-16 sm:right-4 sm:bottom-4 sm:max-h-none sm:w-72 ${GLASS}`}>
       <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-white/10 pr-2 pl-4">
         <h2 className="text-sm font-semibold">{quest ? 'Деталі квесту' : `Квести (${quests.length})`}</h2>
         {/* one cross: closes the quest details first, then hides the panel */}

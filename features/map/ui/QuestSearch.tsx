@@ -38,7 +38,7 @@ export function QuestSearch({ onSearch }: { onSearch: (query: string) => void })
   }
 
   return (
-    <label className={`pointer-events-auto flex h-10 w-72 items-center gap-2 rounded-full px-4 ${GLASS}`}>
+    <label className={`pointer-events-auto flex h-10 w-full items-center gap-2 rounded-full px-4 sm:w-72 ${GLASS}`}>
       <svg viewBox="0 0 24 24" className="size-4 shrink-0 text-white/70" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-3.5-3.5" strokeLinecap="round" />

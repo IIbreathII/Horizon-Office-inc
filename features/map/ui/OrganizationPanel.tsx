@@ -37,7 +37,7 @@ export function OrganizationPanel({ organizations, selected, onChange, questCoun
 
   return (
     // right of VolunteerNav; content height (not to the bottom edge), so the OSM attribution stays visible
-    <aside className={`fixed top-16 left-20 z-20 flex max-h-[calc(100dvh-6rem)] w-72 flex-col overflow-hidden rounded-2xl ${GLASS}`}>
+    <aside className={`fixed inset-x-3 top-28 z-20 flex max-h-[calc(100dvh-8rem)] flex-col overflow-hidden rounded-2xl sm:inset-x-auto sm:top-16 sm:left-20 sm:max-h-[calc(100dvh-6rem)] sm:w-72 ${GLASS}`}>
       <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-white/10 pr-2 pl-4">
         <h2 className="text-sm font-semibold">Організації ({organizations.length})</h2>
         <button
