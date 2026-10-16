@@ -1,0 +1,143 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+// URL задаётся в prisma.config.ts (для CLI) и в адаптере PrismaPg (для рантайма).
+datasource db {
+  provider = "postgresql"
+}
+
+enum QuestStatus {
+  open
+  in_progress
+  completed
+  cancelled
+  archived
+}
+
+enum ClaimStatus {
+  pending
+  approved
+  rejected
+  completed
+  withdrawn
+}
+
+// Структурой users владеет этот сервис.
+// Учётные поля пишет auth-API, игровые (xp, balance, cur_level) — только этот сервис.
+model User {
+  id        Int      @id @default(autoincrement())
+  googleId  String?  @unique @map("google_id")
+  email     String   @unique
+  status    String   @default("active") // active | banned | deleted
+  password  String? // хэш, пишет только auth-API
+  username  String?
+  photo     String?
+  contact   String?
+  xp        Int      @default(0)
+  balance   Int      @default(0)
+  curLevel  Int      @default(1) @map("cur_level")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  organization Organization?
+  claims       QuestClaim[]
+  rewards      UserReward[]
+
+  @@map("users")
+}
+
+model Organization {
+  userId           Int       @id @map("user_id")
+  organizationName String    @map("organization_name")
+  types            String?
+  edrpou           String?   @unique
+  contact          String[]
+  description      String?
+  logo             String?
+  trustScore       Float     @default(0) @map("trust_score")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at")
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  quests Quest[]
+
+  @@map("organizations")
+}
+
+model Quest {
+  id                 Int         @id @default(autoincrement())
+  organizationId     Int         @map("organization_id")
+  questName          String      @map("quest_name")
+  description        String?
+  category           String
+  address            String?
+  lat                Float?
+  lng                Float?
+  maxVolunteers      Int         @map("max_volunteers")
+  assignedVolunteers Int         @default(0) @map("assigned_volunteers")
+  rewardXp           Int         @default(0) @map("reward_xp")
+  rewardCoins        Int         @default(0) @map("reward_coins")
+  status             QuestStatus @default(open)
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [userId], onDelete: Restrict)
+  claims       QuestClaim[]
+
+  @@index([status, id])
+  @@index([organizationId, id])
+  @@index([category, status])
+  @@map("quests")
+}
+
+model QuestClaim {
+  id        Int         @id @default(autoincrement())
+  questId   Int         @map("quest_id")
+  userId    Int         @map("user_id")
+  status    ClaimStatus @default(pending)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  quest Quest @relation(fields: [questId], references: [id], onDelete: Restrict)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([questId, userId])
+  @@index([questId, status])
+  @@index([userId])
+  @@map("quest_claims")
+}
+
+// Таблицы наград: структура готова, эндпоинты — следующий этап.
+model Reward {
+  id            Int      @id @default(autoincrement())
+  rewardsName   String   @map("rewards_name")
+  partnerName   String   @map("partner_name")
+  cost          Int
+  promocodeTemp String?  @map("promocode_temp")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  userRewards UserReward[]
+
+  @@map("rewards")
+}
+
+model UserReward {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  rewardId    Int      @map("reward_id")
+  promocode   String
+  claimedTime DateTime @default(now()) @map("claimed_time")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+
+  @@index([userId, claimedTime])
+  @@index([rewardId])
+  @@map("user_rewards")
+}
