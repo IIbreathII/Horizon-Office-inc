@@ -6,6 +6,7 @@ import type { Reward } from '@/shared/types';
 import { CARD, SKELETON } from '@/shared/ui/surface';
 import { RedeemDialog, type RedeemState } from './RedeemDialog';
 import { RewardCard } from './RewardCard';
+import { LuckyGift } from './LuckyGift';
 
 export function RewardShop() {
   const { data: me } = useMe();
@@ -33,6 +34,8 @@ export function RewardShop() {
 
   return (
     <>
+      <LuckyGift />
+      <h2 className="mt-10 mb-4 text-xl font-semibold text-white">Магазин нагород</h2>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {rewards.map((reward) => (
           <RewardCard key={reward.id} reward={reward} balance={balance} onBuy={open} />

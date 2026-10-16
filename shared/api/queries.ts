@@ -18,7 +18,10 @@ import {
   getQuest,
   getQuestClaims,
   getQuests,
+  getRewardSlot,
+  grantTestSpin,
   getRewards,
+  spinRewardSlot,
   updateOrganization,
   updateQuest,
   type QuestArea,
@@ -35,6 +38,7 @@ export const queryKeys = {
   questsIn: (area: QuestArea) => ['quests', area] as const,
   quest: (id: string) => ['quest', id] as const,
   rewards: ['rewards'] as const,
+  rewardSlot: ['reward-slot'] as const,
   myOrganization: ['my-organization'] as const,
   orgQuests: (orgId: string) => ['org-quests', orgId] as const,
   claims: (questId: string) => ['claims', questId] as const,
@@ -60,6 +64,8 @@ export const useQuest = (id: string | null) =>
   useQuery({ queryKey: queryKeys.quest(id ?? ''), queryFn: () => getQuest(id ?? ''), enabled: id !== null });
 
 export const useRewards = () => useQuery({ queryKey: queryKeys.rewards, queryFn: getRewards });
+
+export const useRewardSlot = () => useQuery({ queryKey: queryKeys.rewardSlot, queryFn: getRewardSlot });
 
 export function useClaimQuest() {
   const client = useQueryClient();
@@ -141,7 +147,12 @@ export function useCompleteClaim() {
   const client = useQueryClient();
   return useMutation({
     mutationFn: ({ questId, claimId }: { questId: string; claimId: string }) => completeClaim(questId, claimId),
-    onSuccess: () => Promise.all([invalidateQuestData(client), client.invalidateQueries({ queryKey: queryKeys.me })]),
+    onSuccess: () =>
+      Promise.all([
+        invalidateQuestData(client),
+        client.invalidateQueries({ queryKey: queryKeys.me }),
+        client.invalidateQueries({ queryKey: queryKeys.rewardSlot }), // a completed quest counts toward a spin
+      ]),
   });
 }
 
@@ -152,6 +163,28 @@ export function useBuyReward() {
     onSuccess: () =>
       Promise.all([
         client.invalidateQueries({ queryKey: queryKeys.me }),
+        client.invalidateQueries({ queryKey: queryKeys.inventory }),
+      ]),
+  });
+}
+
+/** TODO(remove-test-spin): test only — adds one lucky-slot spin. */
+export function useGrantTestSpin() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: grantTestSpin,
+    onSuccess: () => client.invalidateQueries({ queryKey: queryKeys.rewardSlot }),
+  });
+}
+
+/** Spend a lucky-slot spin: refreshes the spin counter and the inventory with the won promo code. */
+export function useSpinRewardSlot() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: spinRewardSlot,
+    onSuccess: () =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: queryKeys.rewardSlot }),
         client.invalidateQueries({ queryKey: queryKeys.inventory }),
       ]),
   });

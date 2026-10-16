@@ -16,6 +16,8 @@ import type {
   QuestStatusChange,
   QuestStatusDto,
   RewardDto,
+  RewardSlotDto,
+  RewardSlotSpinDto,
   UserRewardDto,
 } from './dto';
 import { ApiError } from './http';
@@ -140,9 +142,38 @@ const quests: QuestRow[] = [
     maxVolunteers: 10, assignedVolunteers: 6, rewardXp: 50, rewardCoins: 25,
     startsAt: '2026-10-24T14:00:00+03:00', durationHours: 3,
   }),
+  // finished quests the demo volunteer has completed (they earn one lucky-slot spin on the rewards page)
+  quest({
+    id: 11, organizationId: 101, questName: 'Толока на набережній', category: 'ecology', status: 'completed',
+    description: 'Прибирання набережної після вихідних.', address: 'Набережна Перемоги', lat: 48.449, lng: 35.07,
+    maxVolunteers: 20, assignedVolunteers: 14, rewardXp: 60, rewardCoins: 30, startsAt: '2026-10-05T10:00:00+03:00', durationHours: 3,
+  }),
+  quest({
+    id: 12, organizationId: 102, questName: 'Збір корму для притулку', category: 'animals', status: 'completed',
+    description: 'Збирали й сортували корм у супермаркетах.', address: 'ТРЦ «Мост-Сіті»', lat: 48.466, lng: 35.047,
+    maxVolunteers: 8, assignedVolunteers: 8, rewardXp: 50, rewardCoins: 25, startsAt: '2026-10-06T12:00:00+03:00', durationHours: 4,
+  }),
+  quest({
+    id: 13, organizationId: 101, questName: 'Пакування продуктових наборів', category: 'logistics', status: 'completed',
+    description: 'Пакували набори для переселенців.', address: 'Вокзальна площа, склад №2', lat: 48.477, lng: 35.016,
+    maxVolunteers: 10, assignedVolunteers: 10, rewardXp: 120, rewardCoins: 60, startsAt: '2026-10-07T09:00:00+03:00', durationHours: 5,
+  }),
+  quest({
+    id: 14, organizationId: 101, questName: 'Читання казок у бібліотеці', category: 'city', status: 'completed',
+    description: 'Читали казки дітям у районній бібліотеці.', address: 'вул. Яворницького, 18', lat: 48.461, lng: 35.04,
+    maxVolunteers: 4, assignedVolunteers: 4, rewardXp: 40, rewardCoins: 20, startsAt: '2026-10-08T16:00:00+03:00', durationHours: 2,
+  }),
+  quest({
+    id: 15, organizationId: 101, questName: 'Чай із ветеранами', category: 'elderly', status: 'completed',
+    description: 'Зустріч і розмова з ветеранами в будинку для літніх людей.', address: 'вул. Робоча, 120', lat: 48.44, lng: 35.0,
+    maxVolunteers: 6, assignedVolunteers: 5, rewardXp: 40, rewardCoins: 20, startsAt: '2026-10-09T15:00:00+03:00', durationHours: 2,
+  }),
 ];
 
-const claims: ClaimDto[] = [{ id: 1, questId: 2, userId: me.id, status: 'approved', createdAt: CREATED, updatedAt: CREATED }];
+const claims: ClaimDto[] = [
+  { id: 1, questId: 2, userId: me.id, status: 'approved', createdAt: CREATED, updatedAt: CREATED },
+  ...[11, 12, 13, 14, 15].map((questId, i): ClaimDto => ({ id: 2 + i, questId, userId: me.id, status: 'completed', createdAt: CREATED, updatedAt: CREATED })),
+];
 
 /** Other volunteers (for the organization's participants list). */
 const volunteers: ClaimWithUserDto['user'][] = [
@@ -157,6 +188,15 @@ const rewards: (RewardDto & { promocodeTemp: string })[] = [
   { id: 4, rewardsName: 'Квиток у кіно', partnerName: 'Кінотеатр «Промінь»', cost: 220, promocodeTemp: 'PROMIN' },
   { id: 5, rewardsName: 'Піца 30 см', partnerName: 'Піцерія «На Набережній»', cost: 300, promocodeTemp: 'PIZZA' },
 ];
+
+/** Lucky slot: one free spin per this many completed quests. */
+const QUESTS_PER_SPIN = 5;
+let slotSpinsUsed = 0;
+
+// TODO(remove-test-spin): extra completed quests granted by the test button on the rewards page
+let testBonusQuests = 0;
+
+const myCompletedQuests = () => claims.filter((c) => c.userId === me.id && c.status === 'completed').length + testBonusQuests;
 
 const userRewards: UserRewardDto[] = [
   { id: 1, userId: me.id, rewardId: 1, promocode: 'ZERNO-7K2Q', claimedTime: '2026-10-10T12:30:00+03:00' },
@@ -483,5 +523,31 @@ export const mockApi = {
     const row: UserRewardDto = { id: nextId(userRewards), userId: me.id, rewardId: id, promocode: code, claimedTime: now() };
     userRewards.push(row);
     return copy(userRewardDto(row));
+  },
+
+  /** ASSUMED: GET /rewards/slot */
+  async getRewardSlot(): Promise<RewardSlotDto> {
+    await delay();
+    return { completedQuests: myCompletedQuests(), questsPerSpin: QUESTS_PER_SPIN, spinsUsed: slotSpinsUsed };
+  },
+
+  /** TODO(remove-test-spin): test only — counts one more spin's worth of completed quests. */
+  async grantTestSpin(): Promise<RewardSlotDto> {
+    await delay();
+    testBonusQuests += QUESTS_PER_SPIN;
+    return { completedQuests: myCompletedQuests(), questsPerSpin: QUESTS_PER_SPIN, spinsUsed: slotSpinsUsed };
+  },
+
+  /** ASSUMED: POST /rewards/slot/spin — a free random reward, no coins deducted */
+  async spinRewardSlot(): Promise<RewardSlotSpinDto> {
+    await delay();
+    const available = Math.floor(myCompletedQuests() / QUESTS_PER_SPIN) - slotSpinsUsed;
+    if (available <= 0) throw new ApiError(409, 'No spins available', 'CONFLICT');
+    const reward = rewards[Math.floor(Math.random() * rewards.length)];
+    slotSpinsUsed += 1;
+    const code = `${reward.promocodeTemp}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const row: UserRewardDto = { id: nextId(userRewards), userId: me.id, rewardId: reward.id, promocode: code, claimedTime: now() };
+    userRewards.push(row);
+    return copy({ reward: rewardDto(reward), userReward: userRewardDto(row) });
   },
 };
