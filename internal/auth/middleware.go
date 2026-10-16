@@ -1,9 +1,9 @@
 package auth
 
 import (
+	"Horizon/internal/cfg"
 	"context"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -26,7 +26,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "Неправильний формат заголовку авторизації", http.StatusUnauthorized)
 			return
 		}
-		secretKey := []byte(os.Getenv("JWT_SECRET"))
+		secretKey := []byte(cfg.RequiredEnv("JWT_SECRET"))
 		tokenString := parts[1]
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return secretKey, nil

@@ -1,14 +1,18 @@
 package auth
 
 import (
-	"os"
+	"Horizon/internal/cfg"
+	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 func GenerateToken(userID int64, role string) (string, error) {
-	secretKey := []byte(os.Getenv("JWT_SECRET"))
+	secretKey := []byte(cfg.RequiredEnv("JWT_SECRET"))
+	if secretKey == nil {
+		return "", errors.New("secret key required")
+	}
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"role":    role,

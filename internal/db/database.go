@@ -2,25 +2,23 @@ package db
 
 import (
 	"context"
-	"log"
-	"time"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var Pool *pgxpool.Pool
 
-func Connect(dsn string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
+func Connect(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
-		log.Fatalf("Помилка створення пулу коннектів: %v\n", err)
+		return nil, fmt.Errorf("create postgres pool: %w", err)
 	}
+
 	if err := pool.Ping(ctx); err != nil {
-		log.Fatalf("База не відповідає: %v\n", err)
+		pool.Close()
+		return nil, fmt.Errorf("ping postgres: %w", err)
 	}
-	Pool = pool
-	log.Println("Успішний коннект к PostgreSql")
+
+	return pool, nil
 }

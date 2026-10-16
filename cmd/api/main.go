@@ -2,9 +2,12 @@ package main
 
 import (
 	"Horizon/internal/auth"
+	"Horizon/internal/cfg"
+	"Horizon/internal/sqlpool"
+	"errors"
 	"log"
 	"net/http"
-	"os"
+	"time"
 
 	"Horizon/internal/db"
 
@@ -19,10 +22,11 @@ func main() {
 		log.Println("Файл .env не знайдений, беремо змінні з системи")
 	}
 
-	dsn := os.Getenv("DATABASE_URL")
+	dsn := cfg.RequiredEnv("DATABASE_URL")
 	db.Connect(dsn)
 	defer db.Pool.Close()
 
+	users := sqlpool.NewUserRepository(db.Pool)
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -33,12 +37,22 @@ func main() {
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: true,
 	}))
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Post("/api/v1/auth/login", auth.LoginHandler)
-		r.Post("/auth/register", auth.RegisterHandler)
-		r.Post("/auth/google", auth.GoogleAuthHandler)
+	r.Route("/api/v1/auth", func(r chi.Router) {
+		r.Post("/login", auth.LoginHandler)
+		r.Post("/register", auth.RegisterHandler)
+		r.Post("/google", auth.GoogleAuthHandler)
 	})
 
-	log.Println("Сервер запущений на порті 8080")
-	http.ListenAndServe(":8080", r)
+	server := &http.Server{
+		Addr:              ":8080",
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	log.Printf("Server listening on %s", server.Addr)
+
+	if err := server.ListenAndServe(); err != nil &&
+		!errors.Is(err, http.ErrServerClosed) {
+		log.Fatalf("HTTP server failed: %v", err)
+	}
 }

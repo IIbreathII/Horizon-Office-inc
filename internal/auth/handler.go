@@ -1,11 +1,11 @@
 package auth
 
 import (
+	"Horizon/internal/cfg"
 	"Horizon/internal/models"
 	"Horizon/internal/sqlpool"
 	"encoding/json"
 	"net/http"
-	"os"
 
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/api/idtoken"
@@ -18,7 +18,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := sqlpool.GetUserByEmail(r.Context(), req.Email)
+	user, err := sqlpool.User(r.Context(), req.Email)
 	if err != nil {
 		http.Error(w, "Неправильний email чи пароль", http.StatusUnauthorized)
 		return
@@ -37,7 +37,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "success",
-		"user_id": user.Id,
+		"user_id": user.,
 		"role":    user.Status,
 		"token":   token,
 	})
@@ -89,7 +89,7 @@ func GoogleAuthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientID := os.Getenv("CLIENT_ID")
+	clientID := cfg.RequiredEnv("CLIENT_ID")
 	if clientID == "" {
 		http.Error(w, "Помилка конфігурації сервера", http.StatusInternalServerError)
 		return
