@@ -26,7 +26,15 @@ const fitDistance = cityHeight / 2 / Math.tan(((FOV / 2) * Math.PI) / 180);
 // Camera numbers are tuned by hand: revisit them while looking at the rendered city.
 export const CAMERA = {
   FOV,
-  POLAR: 0.5,                          // 0 = straight down; ~0.3 rad gives a slight 3D tilt; 0.05 if the camera jitters
+  POLAR: 0.5,                        // tilt from vertical, rad: 0 = straight down, ~0.5 = slight game-like tilt
   MAX_DISTANCE: fitDistance * 1.05,  // the whole city fits in view
   MIN_DISTANCE: 1500,                // close enough to see buildings; detail chunks stream in below ~3.5 km
+};
+
+// Street-level view while a quest is selected
+export const FOCUS = {
+  POLAR: 1.05,       // strong tilt, still looking down at the street
+  DISTANCE: 260,     // camera → quest distance on fly-to
+  MIN_DISTANCE: 120,
+  MAX_DISTANCE: 800,
 };

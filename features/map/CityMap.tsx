@@ -7,8 +7,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Box3, Vector3 } from 'three';
 import { CATEGORIES } from '@/shared/categories';
 import type { Quest } from '@/shared/types';
-import { CAMERA, CITY_BOUNDS, project } from './lib/projection';
+import { CAMERA, CITY_BOUNDS, FOCUS, project } from './lib/projection';
 import { CityChunks } from './scene/CityChunks';
+import { QuestPin } from './scene/QuestPin';
 
 const { ACTION } = CameraControlsImpl;
 
@@ -57,10 +58,14 @@ export function CityMap({ quests, selectedId, onSelect, onClose }: CityMapProps)
       >
         <MapCamera focusX={focus?.[0] ?? null} focusZ={focus?.[1] ?? null} />
         <CityChunks />
+        {selected && focus && (
+          <QuestPin x={focus[0]} z={focus[1]} color={CATEGORIES[selected.category].color} />
+        )}
 
         {created && quests.map((quest) => {
+          // the selected quest is marked by the 3D pin instead of its dot
+          if (quest.id === selectedId) return null;
           const [x, z] = project(quest.lat, quest.lng);
-          const isSelected = quest.id === selectedId;
           return (
             <Html key={quest.id} position={[x, MARKER_HEIGHT, z]} center zIndexRange={[10, 0]}>
               <button
@@ -71,7 +76,7 @@ export function CityMap({ quests, selectedId, onSelect, onClose }: CityMapProps)
                   e.stopPropagation();
                   onSelect(quest);
                 }}
-                className={`flex size-10 cursor-pointer items-center justify-center rounded-full bg-white text-xl shadow-md ring-4 transition-transform ${markerRingClass(quest)} ${isSelected ? 'scale-125' : 'hover:scale-110'}`}
+                className={`flex size-10 cursor-pointer items-center justify-center rounded-full bg-white text-xl shadow-md ring-4 transition-transform hover:scale-110 ${markerRingClass(quest)}`}
               >
                 {CATEGORIES[quest.category].emoji}
               </button>
@@ -98,28 +103,46 @@ function markerRingClass(quest: Quest): string {
   return 'ring-blue-500';
 }
 
+type CameraView = { POLAR: number; MIN_DISTANCE: number; MAX_DISTANCE: number };
+
+function applyLimits(c: CameraControls, view: CameraView) {
+  c.minPolarAngle = c.maxPolarAngle = view.POLAR;
+  c.minDistance = view.MIN_DISTANCE;
+  c.maxDistance = view.MAX_DISTANCE;
+}
+
+/**
+ * Camera south of the ground point (x, z), tilted by `polar` from vertical: north stays up.
+ * setLookAt does not clamp to the polar limits, so the tilt is applied here.
+ * The tiny z offset avoids the degenerate "up" (jitter) when polar is 0.
+ */
+function lookAtFrom(c: CameraControls, x: number, z: number, distance: number, polar: number, animate: boolean) {
+  return c.setLookAt(x, distance * Math.cos(polar), z + distance * Math.sin(polar) + 0.001, x, 0, z, animate);
+}
+
+const cameraTarget = new Vector3();
+
 function MapCamera({ focusX, focusZ }: { focusX: number | null; focusZ: number | null }) {
   const ref = useRef<CameraControls>(null);
+  // overview distance to return to when the quest focus ends
+  const overviewDistance = useRef<number | null>(null);
 
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
 
-    // Top-down only: rotation fully disabled
+    // Fixed tilt, no rotation
     c.azimuthRotateSpeed = 0;
     c.polarRotateSpeed = 0;
-    c.minPolarAngle = c.maxPolarAngle = CAMERA.POLAR;
+    applyLimits(c, CAMERA);
 
-    // Gestures: drag = pan, wheel/pinch = limited zoom
-    c.mouseButtons.left = ACTION.TRUCK;
-    c.mouseButtons.right = ACTION.TRUCK;
+    // Gestures: drag = pan along the ground (works with tilt), wheel/pinch = limited zoom
+    c.mouseButtons.left = ACTION.SCREEN_PAN;
+    c.mouseButtons.right = ACTION.SCREEN_PAN;
     c.mouseButtons.wheel = ACTION.DOLLY;
-    c.touches.one = ACTION.TOUCH_TRUCK;
+    c.touches.one = ACTION.TOUCH_SCREEN_PAN;
     c.touches.two = ACTION.TOUCH_DOLLY;
     c.touches.three = ACTION.NONE;
-
-    c.minDistance = CAMERA.MIN_DISTANCE;
-    c.maxDistance = CAMERA.MAX_DISTANCE;
 
     c.setBoundary(
       new Box3(
@@ -131,15 +154,23 @@ function MapCamera({ focusX, focusZ }: { focusX: number | null; focusZ: number |
     // horizontal drag once the target's y drifts off the flat boundary → NaN camera, blank map.
     c.boundaryFriction = 0;
 
-    // z offset: exactly above the target the "up" direction degenerates and the camera jitters
-    void c.setLookAt(0, CAMERA.MAX_DISTANCE, 0.001, 0, 0, 0, false);
+    void lookAtFrom(c, 0, 0, CAMERA.MAX_DISTANCE, CAMERA.POLAR, false);
   }, []);
 
-  // Fly-to when a quest is selected
+  // Quest selected: fly down to street level. Deselected: fly back up at the same spot.
   useEffect(() => {
     const c = ref.current;
-    if (!c || focusX === null || focusZ === null) return;
-    void c.setLookAt(focusX, CAMERA.MIN_DISTANCE, focusZ + 0.001, focusX, 0, focusZ, true);
+    if (!c) return;
+    if (focusX !== null && focusZ !== null) {
+      overviewDistance.current ??= c.distance;
+      applyLimits(c, FOCUS);
+      void lookAtFrom(c, focusX, focusZ, FOCUS.DISTANCE, FOCUS.POLAR, true);
+    } else if (overviewDistance.current !== null) {
+      c.getTarget(cameraTarget);
+      applyLimits(c, CAMERA);
+      void lookAtFrom(c, cameraTarget.x, cameraTarget.z, overviewDistance.current, CAMERA.POLAR, true);
+      overviewDistance.current = null;
+    }
   }, [focusX, focusZ]);
 
   return <CameraControls ref={ref} makeDefault smoothTime={0.35} />;
