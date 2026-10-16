@@ -1,9 +1,10 @@
 import { OrgQuestList } from '@/features/org/OrgQuestList';
+import { PageTitle } from '@/shared/ui/PageTitle';
 
 export default function OrgPage() {
   return (
     <>
-      <h1 className="mb-6 text-2xl font-semibold">Мої квести</h1>
+      <PageTitle title="Мої квести" subtitle="Квести вашої організації, заявки волонтерів і їхній статус" />
       <OrgQuestList />
     </>
   );

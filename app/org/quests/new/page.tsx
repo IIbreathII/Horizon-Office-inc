@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { QuestForm } from '@/features/org/QuestForm';
 import { useCreateQuest } from '@/shared/api/queries';
+import { PageTitle } from '@/shared/ui/PageTitle';
 
 export default function NewQuestPage() {
   const router = useRouter();
@@ -10,7 +11,11 @@ export default function NewQuestPage() {
 
   return (
     <>
-      <h1 className="mb-6 text-2xl font-semibold">Новий квест</h1>
+      <PageTitle
+        title="Новий квест"
+        subtitle="Опишіть завдання та поставте точку на мапі — квест одразу з’явиться у волонтерів"
+        back={{ href: '/org', label: 'Мої квести' }}
+      />
       <QuestForm
         submitLabel="Опублікувати"
         onSubmit={async (input) => {

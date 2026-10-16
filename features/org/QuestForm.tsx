@@ -7,13 +7,14 @@ import type { QuestInput } from '@/shared/api/dto';
 import { CATEGORIES } from '@/shared/categories';
 import type { Category, Quest } from '@/shared/types';
 import { SelectField, TextAreaField, TextField } from '@/shared/ui/FormFields';
-import { BUTTON } from '@/shared/ui/PageShell';
+import { LineIcon } from '@/shared/ui/LineIcon';
+import { BUTTON_PRIMARY, FAINT, PANEL } from '@/shared/ui/surface';
 import { questSchema, type QuestValues } from './schemas';
 
 // WebGL does not exist on the server (§4.7)
 const CityMap = dynamic(() => import('@/features/map/CityMap').then((m) => m.CityMap), {
   ssr: false,
-  loading: () => <div className="h-full w-full animate-pulse bg-gray-200" />,
+  loading: () => <div className="h-full w-full animate-pulse bg-white/5" />,
 });
 
 const CATEGORY_OPTIONS = (Object.keys(CATEGORIES) as Category[]).map((c) => ({ value: c, label: CATEGORIES[c].label }));
@@ -66,8 +67,8 @@ export function QuestForm({ initial, submitLabel, onSubmit }: QuestFormProps) {
   }
 
   return (
-    <div className="grid grid-cols-[minmax(0,24rem)_minmax(0,1fr)] gap-6">
-      <form onSubmit={handleSubmit(submit)} noValidate className="flex flex-col gap-3">
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+      <form onSubmit={handleSubmit(submit)} noValidate className={`flex flex-col gap-4 p-6 ${PANEL}`}>
         <TextField label="Назва" registration={register('questName')} error={errors.questName?.message} />
         <SelectField label="Категорія" options={CATEGORY_OPTIONS} registration={register('category')} error={errors.category?.message} />
         <TextAreaField label="Опис" registration={register('description')} error={errors.description?.message} />
@@ -76,7 +77,10 @@ export function QuestForm({ initial, submitLabel, onSubmit }: QuestFormProps) {
           <TextField label="Широта" type="number" step="any" registration={register('lat', { valueAsNumber: true })} error={errors.lat?.message} />
           <TextField label="Довгота" type="number" step="any" registration={register('lng', { valueAsNumber: true })} error={errors.lng?.message} />
         </div>
-        <p className="text-xs text-gray-500">Клікніть на мапі, щоб поставити точку, або введіть координати.</p>
+        <p className={`flex items-center gap-1.5 text-xs ${FAINT}`}>
+          <LineIcon name="pin" className="size-3.5 text-amber-300" />
+          Клікніть на мапі, щоб поставити точку, або введіть координати.
+        </p>
         <TextField
           label="Кількість волонтерів"
           type="number"
@@ -87,14 +91,14 @@ export function QuestForm({ initial, submitLabel, onSubmit }: QuestFormProps) {
           <TextField label="Нагорода, XP" type="number" registration={register('rewardXp', { valueAsNumber: true })} error={errors.rewardXp?.message} />
           <TextField label="Нагорода, монети" type="number" registration={register('rewardCoins', { valueAsNumber: true })} error={errors.rewardCoins?.message} />
         </div>
-        {errors.root && <p className="text-sm text-red-600">{errors.root.message}</p>}
-        <button type="submit" disabled={isSubmitting} className={`mt-2 ${BUTTON}`}>
+        {errors.root && <p className="text-sm text-rose-300">{errors.root.message}</p>}
+        <button type="submit" disabled={isSubmitting} className={`mt-2 ${BUTTON_PRIMARY}`}>
           {isSubmitting ? 'Зберігаємо…' : submitLabel}
         </button>
       </form>
 
       {/* relative: the map's zoom buttons and attribution are positioned inside this box */}
-      <div className="relative h-[36rem] overflow-hidden rounded-lg border border-gray-200">
+      <div className={`h-[28rem] overflow-hidden lg:sticky lg:top-6 lg:h-[36rem] ${PANEL}`}>
         <CityMap
           quests={[]}
           selectedId={null}

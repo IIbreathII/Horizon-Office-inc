@@ -1,9 +1,10 @@
 import { OrganizationProfile } from '@/features/org/OrganizationForm';
+import { PageTitle } from '@/shared/ui/PageTitle';
 
 export default function OrgProfilePage() {
   return (
     <>
-      <h1 className="mb-6 text-2xl font-semibold">Профіль організації</h1>
+      <PageTitle title="Профіль організації" subtitle="Ці дані бачать волонтери на мапі та в картці квесту" />
       <OrganizationProfile />
     </>
   );

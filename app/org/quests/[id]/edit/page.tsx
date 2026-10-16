@@ -1,15 +1,15 @@
 'use client';
 
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import { QuestForm } from '@/features/org/QuestForm';
 import { useQuest, useUpdateQuest } from '@/shared/api/queries';
+import { PageTitle } from '@/shared/ui/PageTitle';
 
 // useParams needs a Suspense boundary in Next.js (cacheComponents)
 export default function EditQuestPage() {
   return (
-    <Suspense fallback={<p>Завантаження…</p>}>
+    <Suspense fallback={<p className="text-sm text-neutral-400">Завантаження…</p>}>
       <EditQuest />
     </Suspense>
   );
@@ -23,14 +23,11 @@ function EditQuest() {
 
   return (
     <>
-      <Link href={`/org/quests/${id}`} className="text-sm underline">
-        ← До квесту
-      </Link>
-      <h1 className="mt-2 mb-6 text-2xl font-semibold">Редагування квесту</h1>
+      <PageTitle title="Редагування квесту" back={{ href: `/org/quests/${id}`, label: 'До квесту' }} />
       {isPending ? (
-        <p>Завантаження…</p>
+        <p className="text-sm text-neutral-400">Завантаження…</p>
       ) : isError ? (
-        <p>Квест не знайдено</p>
+        <p className="text-sm text-rose-300">Квест не знайдено</p>
       ) : (
         <QuestForm
           initial={quest}
