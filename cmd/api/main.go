@@ -1,14 +1,28 @@
 package main
 
 import (
+	"Horizon/internal/auth"
+	"log"
 	"net/http"
+	"os"
+
+	"Horizon/internal/db"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Println("Файл .env не знайдений, беремо змінні з системи")
+	}
+
+	dsn := os.Getenv("DATABASE_URL")
+	db.Connect(dsn)
+	defer db.Pool.Close()
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
@@ -22,25 +36,13 @@ func main() {
 
 	r.Route("/api", func(r chi.Router) {
 
-		r.Get("/profiles/me", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{
-					"id":67,
-					"organization_name": "Фонд Бандери",
-					"trust_score": 50.00
-				}`))
-		})
-		r.Get("/quests", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`[
-				{	
-					"id": 89,
-					"quest_name": "Приборка мусора",
-					"lat": 49.4231,
-					"lng": 34.9912,
-					"reward_coins": 100
-				}
-			]))
-		})
+		r.Post("/api/v1/auth/login", auth.LoginHandler)
+
 	})
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Post("/auth/register", auth.RegisterHandler)
+	})
+
+	log.Println("Сервер запущений на порті 8080")
+	http.ListenAndServe(":8080", r)
 }

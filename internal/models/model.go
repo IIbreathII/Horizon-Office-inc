@@ -3,14 +3,14 @@ package models
 import "time"
 
 type User struct {
-	Id       int64   `json:"id" db:"id"`
-	GoogleID string  `json:"google_id" db:"google_id"`
-	Email    string  `json:"email" db:"email"`
-	Status   string  `json:"status" db:"status"`
-	Password string  `json:"password" db:"password"`
-	Name     string  `json:"username" db:"username"`
-	Photo    *string `json:"photo"`
-	Contact  *string `json:"contact"`
+	Id       int64   `json:"id"`
+	GoogleID string  `json:"google_id,omitempty"`
+	Email    string  `json:"email"`
+	Status   string  `json:"status"`
+	Password string  `json:"-"`
+	Name     string  `json:"username"`
+	Photo    *string `json:"photo,omitempty"`
+	Contact  *string `json:"contact,omitempty"`
 }
 
 type Organizations struct {
@@ -66,4 +66,16 @@ type UserRewards struct {
 	RewardID    int64     `json:"reward_id" db:"reward_id"`
 	Promocode   string    `json:"promo_code" db:"promo_code"`
 	ClaimedTime time.Time `json:"claimed_time" db:"claimed_time"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type RegisterRequest struct {
+	Email    string `json:"email"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Role     string `json:"role"`
 }
