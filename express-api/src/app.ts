@@ -3,6 +3,7 @@ import { errorHandler, notFoundHandler } from './common/middleware/errorHandler.
 import { organizationsRouter } from './modules/organizations/organizations.routes.js';
 import { questsRouter } from './modules/quests/quests.routes.js';
 import { claimsRouter } from './modules/claims/claims.routes.js';
+import { mountSwagger } from './docs/swagger.js';
 
 export function createApp() {
   const app = express();
@@ -13,6 +14,8 @@ export function createApp() {
   app.get('/health', (_req, res) => {
     res.json({ ok: true });
   });
+
+  mountSwagger(app);
 
   app.use('/organizations', organizationsRouter); // включая /organizations/:id/quests
   app.use('/quests/:id/claims', claimsRouter); // до /quests

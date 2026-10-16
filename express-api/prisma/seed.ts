@@ -3,6 +3,7 @@
 import dotenv from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
+import { DEV_USER } from '../src/common/devUser.js';
 
 dotenv.config({ quiet: true });
 const { pgConfig } = await import('../src/config/database.js');
@@ -10,6 +11,13 @@ const { pgConfig } = await import('../src/config/database.js');
 const prisma = new PrismaClient({ adapter: new PrismaPg(pgConfig('migrator')) });
 
 async function main() {
+  // dev-пользователь для байпаса guard
+  await prisma.user.upsert({
+    where: { email: DEV_USER.email },
+    update: {},
+    create: { ...DEV_USER },
+  });
+
   const org = await prisma.user.upsert({
     where: { email: 'org@example.com' },
     update: {},

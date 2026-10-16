@@ -20,7 +20,6 @@ const EnvSchema = z.object({
   // Dev-байпас guard (локальная разработка)
   IS_DEVELOPMENT: z.stringbool().default(false),
   DEV_BYPASS_TOKEN: z.string().optional().transform((v) => (v ? v : undefined)),
-  DEV_BYPASS_USER_ID: z.coerce.number().int().positive().default(1),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

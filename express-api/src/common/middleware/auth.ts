@@ -3,6 +3,7 @@ import jwt, { type JwtPayload } from 'jsonwebtoken';
 import { env } from '../../config/env.js';
 import { prisma } from '../../db/prisma.js';
 import { Forbidden, Unauthorized } from '../errors.js';
+import { DEV_USER } from '../devUser.js';
 
 /** Проверяет токен auth-API. Этот сервис токены только проверяет, не выпускает. */
 export function verifyToken(token: string): number {
@@ -43,17 +44,18 @@ async function getUserStatus(id: number): Promise<string | null> {
 }
 
 export const auth: RequestHandler = async (req, _res, next) => {
-  // Dev-байпас: только если IS_DEVELOPMENT=true и прислан верный DEV_BYPASS_TOKEN
-  const bypass = req.headers['x-dev-bypass'];
-  if (env.IS_DEVELOPMENT && env.DEV_BYPASS_TOKEN && bypass === env.DEV_BYPASS_TOKEN) {
-    req.user = { id: env.DEV_BYPASS_USER_ID };
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) throw new Unauthorized('No token');
+  const token = header.slice(7).trim();
+
+  // Dev-байпас: только если IS_DEVELOPMENT=true и вместо JWT прислан DEV_BYPASS_TOKEN
+  if (env.IS_DEVELOPMENT && env.DEV_BYPASS_TOKEN && token === env.DEV_BYPASS_TOKEN) {
+    // без JWT и без проверок в БД; работаем от имени dev-пользователя из сида
+    req.user = { id: DEV_USER.id };
     return next();
   }
 
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) throw new Unauthorized('No token');
-
-  const userId = verifyToken(header.slice(7).trim());
+  const userId = verifyToken(token);
 
   const status = await getUserStatus(userId);
   if (status === null) throw new Unauthorized('User not found');
