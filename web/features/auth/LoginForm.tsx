@@ -9,7 +9,7 @@ import { BUTTON_PRIMARY } from '@/shared/ui/PageShell';
 import { authApi, type AuthResult } from './authApi';
 import { useAuth } from './AuthProvider';
 import { GoogleSignInButton } from './GoogleSignInButton';
-import { safeNext } from './guards';
+import { safeNext } from './next';
 import { loginSchema, type LoginValues } from './schemas';
 import { AuthTextField } from './ui/AuthFields';
 
@@ -25,8 +25,8 @@ export function LoginForm() {
   } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
 
   /** Save the session, then: a new Google account picks its role; otherwise back to `next` or the user's home. */
-  async function finish({ token, created }: AuthResult) {
-    signIn(token);
+  async function finish({ created }: AuthResult) {
+    signIn();
     if (created) {
       router.push('/register/role');
       return;

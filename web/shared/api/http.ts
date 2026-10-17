@@ -2,14 +2,14 @@
 //
 // NEXT_PUBLIC_API_URL is the API base: an absolute URL (needs CORS on the backend) or a same-origin
 // path like `/api`, which next.config.ts rewrites to the backend (no CORS needed).
+// The session JWT is not handled here: it sits in an httpOnly cookie and proxy.ts turns it into
+// `Authorization: Bearer` for /api requests.
 import type { ErrorBody } from './dto';
-import { getToken } from './token';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
-// Local development only: the backend accepts its DEV_BYPASS_TOKEN as `Authorization: Bearer …`.
-// Used while nobody is signed in; with it set the app also counts as signed in (see AuthProvider).
+// Local development only: the backend accepts its DEV_BYPASS_TOKEN as `Authorization: Bearer …`,
+// and with it set nobody needs to sign in (proxy.ts).
 const DEV_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN;
-export const HAS_DEV_TOKEN = Boolean(DEV_TOKEN);
 
 export class ApiError extends Error {
   readonly status: number;
@@ -36,12 +36,11 @@ export async function http<T>(path: string, { method = 'GET', body, query }: Req
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  const token = getToken() ?? DEV_TOKEN;
-  if (token) headers.Authorization = `Bearer ${token}`;
+  if (DEV_TOKEN) headers.Authorization = `Bearer ${DEV_TOKEN}`;
 
   const res = await fetch(`${API_URL}${path}${search}`, {
     method,
-    credentials: 'include', // auth cookie, if the auth API sets one
+    credentials: 'same-origin', // the session cookie goes to /api on this site
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });

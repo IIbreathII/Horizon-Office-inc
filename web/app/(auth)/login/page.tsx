@@ -1,13 +1,11 @@
-import { RedirectIfAuthenticated } from '@/features/auth/guards';
 import { LoginForm } from '@/features/auth/LoginForm';
 import { AuthCard } from '@/features/auth/ui/AuthCard';
 
+// Signed-in visitors never get here: proxy.ts sends them into the app.
 export default function LoginPage() {
   return (
-    <RedirectIfAuthenticated>
-      <AuthCard title="Вхід">
-        <LoginForm />
-      </AuthCard>
-    </RedirectIfAuthenticated>
+    <AuthCard title="Вхід">
+      <LoginForm />
+    </AuthCard>
   );
 }

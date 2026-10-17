@@ -24,13 +24,13 @@ export function AccountRegisterForm() {
   async function onSubmit(values: AccountValues) {
     setFormError(null);
     try {
-      const { token } = await authApi.register({
+      await authApi.register({
         username: values.username,
         email: values.email,
         password: values.password,
         contact: values.contact.replace(/\s/g, ''), // "+380 67 123 45 67" → "+380671234567"
       });
-      signIn(token);
+      signIn();
       router.push('/register/role');
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Не вдалося створити акаунт');

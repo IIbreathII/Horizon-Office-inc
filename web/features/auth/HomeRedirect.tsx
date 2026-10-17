@@ -4,16 +4,17 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from './AuthProvider';
 
-/** Sends the visitor to the right start page once the session is known. */
+/** The start page for a signed-in user (proxy.ts sends everyone else to /login): /org or /map by role. */
 export function HomeRedirect() {
-  const { ready, isAuthenticated, homePath } = useAuth();
+  const { homePath } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!ready) return;
-    if (!isAuthenticated) router.replace('/login');
-    else void homePath().then((path) => router.replace(path), () => router.replace('/login'));
-  }, [ready, isAuthenticated, homePath, router]);
+    void homePath().then(
+      (path) => router.replace(path),
+      () => router.replace('/login'),
+    );
+  }, [homePath, router]);
 
   return null;
 }
