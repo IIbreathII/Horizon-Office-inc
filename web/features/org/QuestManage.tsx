@@ -69,14 +69,10 @@ export function QuestManage({ id }: { id: string }) {
   if (isPending) return <p className={`text-sm ${FAINT}`}>Завантаження…</p>;
   if (isError) return <p className={`p-5 text-sm text-rose-300 ${PANEL}`}>Квест не знайдено</p>;
 
-  async function onDelete() {
-    if (!window.confirm('Видалити квест? Якщо є заявки, квест буде архівовано.')) return;
-    try {
-      await remove.mutateAsync(id);
-      router.push('/org');
-    } catch {
-      // shown from remove.error
-    }
+  // one click: the quest is deleted (archived if it has claims) and the page goes up to the quest list;
+  // replace, so «back» does not return to a quest that is gone. Errors are shown from remove.error.
+  function onDelete() {
+    remove.mutate(id, { onSuccess: () => router.replace('/org') });
   }
 
   const error = changeStatus.error ?? remove.error;
@@ -153,9 +149,10 @@ export function QuestManage({ id }: { id: string }) {
               Редагувати
             </Link>
           )}
-          <button type="button" disabled={remove.isPending} onClick={onDelete} className={BUTTON_DANGER}>
+          {/* stays disabled after success too, while the page navigates away */}
+          <button type="button" disabled={remove.isPending || remove.isSuccess} onClick={onDelete} className={BUTTON_DANGER}>
             <LineIcon name="trash" className="size-4" />
-            Видалити
+            {remove.isPending || remove.isSuccess ? 'Видалення…' : 'Видалити'}
           </button>
         </div>
         {error && <p className="text-sm text-rose-300">{error.message}</p>}

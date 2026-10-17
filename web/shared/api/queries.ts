@@ -1,5 +1,6 @@
 // TanStack Query hooks over api.ts: caching, loading states and invalidation after mutations.
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import type { Quest } from '@/shared/types';
 import type { OrganizationInput, QuestInput, QuestStatusChange } from './dto';
 import {
   buyReward,
@@ -141,9 +142,20 @@ export function useUpdateQuest() {
   });
 }
 
+/**
+ * Delete (or archive) a quest. The organization's list drops it at once; the lists refresh in the background,
+ * without waiting, so the page can leave right away. The deleted quest's own card and claims are not refetched:
+ * they would answer 404 while the page is still on screen.
+ */
 export function useDeleteQuest() {
   const client = useQueryClient();
-  return useMutation({ mutationFn: deleteQuest, onSuccess: () => invalidateQuestData(client) });
+  return useMutation({
+    mutationFn: deleteQuest,
+    onSuccess: (_, id) => {
+      client.setQueriesData<Quest[]>({ queryKey: ['org-quests'] }, (list) => list?.filter((q) => q.id !== id));
+      void Promise.all([['quests'], ['org-quests']].map((queryKey) => client.invalidateQueries({ queryKey })));
+    },
+  });
 }
 
 export function useChangeQuestStatus() {
