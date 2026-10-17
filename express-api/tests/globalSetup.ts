@@ -6,7 +6,14 @@ import pg from 'pg';
 import { testEnv as env } from './testEnv.js';
 
 export default async function setup() {
-  const client = new pg.Client({ connectionString: env.DATABASE_URL.replace(/\?.*$/, '') });
+  // sslmode переводим в настройку ssl, как src/config/database.ts (RDS без SSL не пускает)
+  const url = new URL(env.DATABASE_URL);
+  const sslmode = url.searchParams.get('sslmode');
+  url.search = '';
+  const client = new pg.Client({
+    connectionString: url.toString(),
+    ssl: sslmode && sslmode !== 'disable' ? { rejectUnauthorized: false } : undefined,
+  });
   await client.connect();
   try {
     await client.query('DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;');

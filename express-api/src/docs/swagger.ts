@@ -32,6 +32,7 @@ export const openapiSpec = swaggerJsdoc({
         Forbidden: { description: 'Нет прав / нет профиля организации', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
         NotFound: { description: 'Не найдено', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
         Conflict: { description: 'Конфликт (уникальность, состояние)', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
+        PaymentRequired: { description: 'Не хватает монет', content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } } },
       },
       schemas: {
         Error: {
@@ -109,6 +110,11 @@ export const openapiSpec = swaggerJsdoc({
             status: { $ref: '#/components/schemas/QuestStatus' },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
+            claim: {
+              allOf: [{ $ref: '#/components/schemas/Claim' }],
+              nullable: true,
+              description: 'в GET /quests и GET /quests/{id} с токеном и в GET /profiles/me/quests: заявка текущего пользователя, null — не подавал',
+            },
           },
         },
         QuestInput: {
@@ -136,6 +142,59 @@ export const openapiSpec = swaggerJsdoc({
             status: { $ref: '#/components/schemas/ClaimStatus' },
             createdAt: { type: 'string', format: 'date-time' },
             updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        Profile: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            email: { type: 'string' },
+            username: { type: 'string', nullable: true },
+            photo: { type: 'string', nullable: true },
+            contact: { type: 'string', nullable: true },
+            status: { type: 'string', example: 'active' },
+            xp: { type: 'integer' },
+            balance: { type: 'integer', description: 'монеты' },
+            curLevel: { type: 'integer', description: 'уровень по xp (формула в claims/level.ts)' },
+            levelProgress: {
+              type: 'object',
+              description: 'прогресс внутри уровня: current из required xp до следующего',
+              properties: { current: { type: 'integer', example: 150 }, required: { type: 'integer', example: 300 } },
+            },
+            organization: {
+              type: 'object',
+              nullable: true,
+              description: 'профиль организации пользователя, если есть',
+              properties: { userId: { type: 'integer' }, organizationName: { type: 'string' } },
+            },
+          },
+        },
+        Reward: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            rewardsName: { type: 'string', example: 'Кофе' },
+            partnerName: { type: 'string', example: 'Coffee Point' },
+            cost: { type: 'integer', description: 'цена в монетах' },
+          },
+        },
+        UserReward: {
+          type: 'object',
+          properties: {
+            id: { type: 'integer' },
+            userId: { type: 'integer' },
+            rewardId: { type: 'integer' },
+            promocode: { type: 'string', example: 'COFFEE-7KQ2MX' },
+            claimedTime: { type: 'string', format: 'date-time' },
+            reward: { $ref: '#/components/schemas/Reward' },
+          },
+        },
+        RewardSlot: {
+          type: 'object',
+          properties: {
+            completedQuests: { type: 'integer' },
+            questsPerSpin: { type: 'integer', example: 5 },
+            spinsUsed: { type: 'integer' },
           },
         },
       },

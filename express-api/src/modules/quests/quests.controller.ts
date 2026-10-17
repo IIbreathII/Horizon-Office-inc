@@ -11,12 +11,12 @@ export const questsController = {
 
   async feed(req: Request, res: Response) {
     const query = parse(feedQuery, req.query);
-    res.json(await service.feed(query));
+    res.json(await service.feed(query, req.user?.id));
   },
 
   async getById(req: Request, res: Response) {
     const { id } = parse(idParams, req.params);
-    res.json(await service.getById(id));
+    res.json(await service.getById(id, req.user?.id));
   },
 
   /** GET /organizations/:id/quests */

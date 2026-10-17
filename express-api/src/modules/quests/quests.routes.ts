@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { auth } from '../../common/middleware/auth.js';
+import { auth, optionalAuth } from '../../common/middleware/auth.js';
 import { requireOrg } from '../../common/middleware/requireOrg.js';
 import { questsController as c } from './quests.controller.js';
 
@@ -28,7 +28,8 @@ export const questsRouter = Router();
  *   get:
  *     tags: [Quests]
  *     summary: Лента квестов (курсорная пагинация, фильтр по радиусу)
- *     description: lat, lng и radius передаются только вместе.
+ *     description: lat, lng и radius передаются только вместе. С токеном у каждого квеста есть claim — заявка текущего пользователя.
+ *     security: [{}, { bearerAuth: [] }]
  *     parameters:
  *       - $ref: '#/components/parameters/cursor'
  *       - $ref: '#/components/parameters/limit'
@@ -50,7 +51,7 @@ export const questsRouter = Router();
  *       400: { $ref: '#/components/responses/BadRequest' }
  */
 questsRouter.post('/', auth, requireOrg, c.create);
-questsRouter.get('/', c.feed);
+questsRouter.get('/', optionalAuth, c.feed);
 
 /**
  * @openapi
@@ -58,6 +59,8 @@ questsRouter.get('/', c.feed);
  *   get:
  *     tags: [Quests]
  *     summary: Квест по id
+ *     description: С токеном в ответе есть claim — заявка текущего пользователя.
+ *     security: [{}, { bearerAuth: [] }]
  *     parameters: [{ $ref: '#/components/parameters/id' }]
  *     responses:
  *       200: { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Quest' } } } }
@@ -111,7 +114,7 @@ questsRouter.get('/', c.feed);
  *       404: { $ref: '#/components/responses/NotFound' }
  *       409: { $ref: '#/components/responses/Conflict' }
  */
-questsRouter.get('/:id', c.getById);
+questsRouter.get('/:id', optionalAuth, c.getById);
 questsRouter.patch('/:id', auth, requireOrg, c.update);
 questsRouter.patch('/:id/status', auth, requireOrg, c.changeStatus);
 questsRouter.delete('/:id', auth, requireOrg, c.remove);

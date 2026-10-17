@@ -144,3 +144,30 @@ describe('quests', () => {
     expect((await api().get('/organizations/99999/quests')).status).toBe(404);
   });
 });
+
+describe('quests: current user claim', () => {
+  it('with a token feed and card carry my claim (null if none); anonymous and bad tokens get no field', async () => {
+    const org = await createOrgUser();
+    const vol = await createUser();
+    const applied = await createQuest(org.id);
+    const other = await createQuest(org.id);
+    await api().post(`/quests/${applied.id}/claims`).set(bearer(vol.id));
+
+    const feed = await api().get('/quests').set(bearer(vol.id));
+    const byId = new Map(feed.body.data.map((q: { id: number; claim: unknown }) => [q.id, q.claim]));
+    expect(byId.get(applied.id)).toMatchObject({ questId: applied.id, userId: vol.id, status: 'pending' });
+    expect(byId.get(other.id)).toBeNull();
+
+    const card = await api().get(`/quests/${applied.id}`).set(bearer(vol.id));
+    expect(card.body.claim).toMatchObject({ status: 'pending' });
+
+    const anonymous = await api().get(`/quests/${applied.id}`);
+    expect(anonymous.status).toBe(200);
+    expect(anonymous.body).not.toHaveProperty('claim');
+
+    // негодный токен не ломает публичную ленту
+    const badToken = await api().get('/quests').set({ Authorization: 'Bearer not-a-jwt' });
+    expect(badToken.status).toBe(200);
+    expect(badToken.body.data[0]).not.toHaveProperty('claim');
+  });
+});

@@ -35,6 +35,17 @@ function boundingBox(lat: number, lng: number, radiusKm: number) {
   };
 }
 
+/**
+ * Для вошедшего пользователя добавляет к квестам его заявку (`claim`, null — не подавал).
+ * Анонимам поле не добавляется: «не подавал» и «неизвестно» — разные ответы.
+ */
+async function withMyClaims<T extends { id: number }>(quests: T[], userId: number | undefined) {
+  if (userId === undefined) return quests;
+  const claims = await prisma.questClaim.findMany({ where: { userId, questId: { in: quests.map((q) => q.id) } } });
+  const byQuest = new Map(claims.map((c) => [c.questId, c]));
+  return quests.map((q) => ({ ...q, claim: byQuest.get(q.id) ?? null }));
+}
+
 async function getOwnedQuest(questId: number, orgId: number): Promise<Quest> {
   const quest = await repo.findById(questId);
   if (!quest) throw new NotFound('Quest not found');
@@ -49,7 +60,7 @@ export const questsService = {
     return repo.create({ ...input, organizationId: orgId });
   },
 
-  async feed(query: FeedQuery) {
+  async feed(query: FeedQuery, userId?: number) {
     const where: Prisma.QuestWhereInput = {
       status: query.status,
       ...(query.category ? { category: query.category } : {}),
@@ -59,13 +70,15 @@ export const questsService = {
     };
     const cursorId = query.cursor ? decodeCursor(query.cursor) : undefined;
     const items = await repo.feed(where, cursorId, query.limit);
-    return cursorResult(items, query.limit);
+    const page = cursorResult(items, query.limit);
+    return { ...page, data: await withMyClaims(page.data, userId) };
   },
 
-  async getById(id: number) {
+  async getById(id: number, userId?: number) {
     const quest = await repo.findByIdWithOrg(id);
     if (!quest) throw new NotFound('Quest not found');
-    return quest;
+    const [withClaim] = await withMyClaims([quest], userId);
+    return withClaim;
   },
 
   async listByOrg(orgId: number, query: OrgQuestsQuery) {

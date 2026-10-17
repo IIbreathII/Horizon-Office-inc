@@ -4,6 +4,8 @@ import { errorHandler, notFoundHandler } from './common/middleware/errorHandler.
 import { organizationsRouter } from './modules/organizations/organizations.routes.js';
 import { questsRouter } from './modules/quests/quests.routes.js';
 import { claimsRouter } from './modules/claims/claims.routes.js';
+import { profilesRouter } from './modules/profiles/profiles.routes.js';
+import { rewardsRouter } from './modules/rewards/rewards.routes.js';
 import { mountSwagger } from './docs/swagger.js';
 
 export function createApp() {
@@ -23,6 +25,8 @@ export function createApp() {
   app.use('/organizations', organizationsRouter); // включая /organizations/:id/quests
   app.use('/quests/:id/claims', claimsRouter); // до /quests
   app.use('/quests', questsRouter);
+  app.use('/profiles', profilesRouter);
+  app.use('/rewards', rewardsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

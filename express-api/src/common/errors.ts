@@ -22,6 +22,13 @@ export class Unauthorized extends AppError {
   }
 }
 
+/** Не хватает монет на покупку. */
+export class PaymentRequired extends AppError {
+  constructor(message = 'Payment required') {
+    super(402, 'PAYMENT_REQUIRED', message);
+  }
+}
+
 export class Forbidden extends AppError {
   constructor(message = 'Forbidden') {
     super(403, 'FORBIDDEN', message);

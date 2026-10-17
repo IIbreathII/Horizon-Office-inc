@@ -30,7 +30,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE app_migrator IN SCHEMA public
 -- volunteer-api: users только читает + игровые поля.
 REVOKE ALL ON users FROM volunteer_api;
 GRANT SELECT ON users TO volunteer_api;
-GRANT UPDATE (xp, balance, cur_level, updated_at) ON users TO volunteer_api;
+GRANT UPDATE (xp, balance, cur_level, slot_spins_used, updated_at) ON users TO volunteer_api;
 
 -- auth-API: только учётные поля users, остальные таблицы не видит.
 GRANT SELECT ON users TO auth_api;

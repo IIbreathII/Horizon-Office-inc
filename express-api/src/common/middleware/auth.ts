@@ -43,16 +43,15 @@ async function getUserStatus(id: number): Promise<string | null> {
   return status;
 }
 
-export const auth: RequestHandler = async (req, _res, next) => {
-  const header = req.headers.authorization;
+/** id пользователя по заголовку Authorization; бросает 401/403, как `auth`. */
+async function authenticate(header: string | undefined): Promise<number> {
   if (!header?.startsWith('Bearer ')) throw new Unauthorized('No token');
   const token = header.slice(7).trim();
 
   // Dev-байпас: только если IS_DEVELOPMENT=true и вместо JWT прислан DEV_BYPASS_TOKEN
   if (env.IS_DEVELOPMENT && env.DEV_BYPASS_TOKEN && token === env.DEV_BYPASS_TOKEN) {
     // без JWT и без проверок в БД; работаем от имени dev-пользователя из сида
-    req.user = { id: DEV_USER.id };
-    return next();
+    return DEV_USER.id;
   }
 
   const userId = verifyToken(token);
@@ -61,6 +60,26 @@ export const auth: RequestHandler = async (req, _res, next) => {
   if (status === null) throw new Unauthorized('User not found');
   if (status !== 'active') throw new Forbidden(`User is ${status}`);
 
-  req.user = { id: userId };
+  return userId;
+}
+
+export const auth: RequestHandler = async (req, _res, next) => {
+  req.user = { id: await authenticate(req.headers.authorization) };
+  next();
+};
+
+/**
+ * Для публичных эндпоинтов, которые для вошедшего пользователя показывают больше (его заявку на квест).
+ * Без токена или с негодным токеном запрос идёт как анонимный — публичный ответ не должен ломаться
+ * из-за просроченного токена.
+ */
+export const optionalAuth: RequestHandler = async (req, _res, next) => {
+  if (req.headers.authorization) {
+    try {
+      req.user = { id: await authenticate(req.headers.authorization) };
+    } catch (e) {
+      if (!(e instanceof Unauthorized || e instanceof Forbidden)) throw e;
+    }
+  }
   next();
 };

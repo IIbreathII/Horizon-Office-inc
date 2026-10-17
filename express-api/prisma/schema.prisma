@@ -27,7 +27,7 @@ enum ClaimStatus {
 }
 
 // Структурой users владеет этот сервис.
-// Учётные поля пишет auth-API, игровые (xp, balance, cur_level) — только этот сервис.
+// Учётные поля пишет auth-API, игровые (xp, balance, cur_level, slot_spins_used) — только этот сервис.
 model User {
   id        Int      @id @default(autoincrement())
   googleId  String?  @unique @map("google_id")
@@ -40,6 +40,8 @@ model User {
   xp        Int      @default(0)
   balance   Int      @default(0)
   curLevel  Int      @default(1) @map("cur_level")
+  // рулетка на странице наград: сколько прокруток уже потрачено (одна за каждые 5 выполненных квестов)
+  slotSpinsUsed Int   @default(0) @map("slot_spins_used")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
