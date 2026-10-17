@@ -1,0 +1,10 @@
+# Secrets: real env files are never committed, in any folder. The examples stay tracked.
+.env
+.env.*
+!.env.example
+
+# Leftovers from before the frontend moved to web/
+/node_modules/
+/.next/
+/next-env.d.ts
+/tsconfig.tsbuildinfo
