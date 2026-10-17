@@ -120,7 +120,11 @@ export function MascotFlight({
     // a stopped act rejects; `stopped` keeps onComplete from running after unmount
     act().then(
       () => !stopped && latest.current.onComplete(),
-      () => !stopped && latest.current.onComplete(),
+      (error: unknown) => {
+        if (stopped) return; // unmounted: its moves were cancelled on purpose
+        console.error('[mascot] flight failed', error);
+        latest.current.onComplete();
+      },
     );
     return () => {
       stopped = true;

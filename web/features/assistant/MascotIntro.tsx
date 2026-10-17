@@ -157,7 +157,11 @@ export function MascotIntro({
     let stopped = false;
     act().then(
       () => !stopped && done.current(),
-      () => !stopped && done.current(),
+      (error: unknown) => {
+        if (stopped) return; // unmounted: its moves were cancelled on purpose
+        console.error('[mascot] intro failed', error);
+        done.current();
+      },
     );
     return () => {
       stopped = true;
