@@ -4,7 +4,8 @@ const API_URL = process.env.API_URL ?? "http://localhost:3000"; // Express
 // go-api (AUTH_API_URL) викликають серверні обробники app/auth/*/route.ts: вони кладуть JWT у httpOnly-cookie
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Docker: .next/standalone містить сервер і лише потрібні node_modules (див. Dockerfile)
+  output: "standalone",
   experimental: {
     agentFeedback: true,
   },

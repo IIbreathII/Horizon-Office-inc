@@ -1,0 +1,15 @@
+# Frontend-інстанс: Next на :80 (за CloudFront).
+# docker compose -f docker-compose.frontend.yml --env-file web/.env up -d --build
+# --env-file потрібен для build args: API_URL і NEXT_PUBLIC_* вшиваються під час збирання.
+services:
+  web:
+    build:
+      context: ./web
+      args:
+        API_URL: ${API_URL:?set API_URL in web/.env}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+    env_file: ./web/.env
+    ports:
+      - "80:3000"
+    restart: unless-stopped

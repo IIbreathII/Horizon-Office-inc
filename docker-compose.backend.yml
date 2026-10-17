@@ -1,0 +1,21 @@
+# Backend-інстанс: express-api (:3000) і go-api (:8080).
+# docker compose -f docker-compose.backend.yml up -d --build
+services:
+  express-api:
+    build: ./express-api
+    env_file: ./express-api/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  go-api:
+    build: ./go-api
+    env_file: ./go-api/.env
+    environment:
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
