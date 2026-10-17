@@ -1,0 +1,10 @@
+3D models in this folder — all CC0 1.0 Universal (public domain), credit not required.
+
+trees/tree-default.glb, trees/tree-fat.glb
+  Kenney "Nature Kit" — https://kenney.nl/assets/nature-kit
+
+vehicles/*.glb, vehicles/Textures/colormap.png (sedan, taxi, van, suv)
+  Kenney "Car Kit" — https://kenney.nl/assets/car-kit
+
+boats/*.glb, boats/Textures/colormap.png (sail, speed, tug, fishing boats)
+  Kenney "Watercraft Kit" — https://kenney.nl/assets/watercraft-kit

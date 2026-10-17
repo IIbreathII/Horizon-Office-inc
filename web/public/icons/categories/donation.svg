@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <title>Blood bag medical icon</title>
+  <path fill="#303B91" d="M222 84V57c0-18.8 15.2-34 34-34s34 15.2 34 34v27z"/>
+  <rect x="147" y="84" width="218" height="276" rx="19" fill="#29ACDC"/>
+  <rect x="168.5" y="104.5" width="175" height="234.5" rx="13" fill="#F2F2F2"/>
+  <path fill="#F21F2A" d="M168.5 245.5c28-11.5 55-13.5 82-5.5 29 8.6 61 23 93 35v50.5c0 7.2-5.8 13-13 13h-149c-7.2 0-13-5.8-13-13z"/>
+  <path fill="#F21F2A" d="M244.5 134h23v22h22v23h-22v22h-23v-22h-22v-23h22z"/>
+  <path fill="#303B91" d="M207 359h98v34c0 9.4-7.6 17-17 17h-64c-9.4 0-17-7.6-17-17z"/>
+  <path fill="#29ACDC" d="M246 410h20v69c0 5.5-4.5 10-10 10s-10-4.5-10-10z"/>
+</svg>
