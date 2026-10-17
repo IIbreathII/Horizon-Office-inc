@@ -2,10 +2,10 @@ FROM golang:latest AS builder
 
 WORKDIR /app
 
-COPY go.mod go.sum ./
+COPY ../go.mod go.sum ./
 RUN go mod download
 
-COPY . .
+COPY .. .
 
 RUN apt-get update && apt-get install -y curl && \
     curl -o global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem

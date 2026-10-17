@@ -1,9 +1,9 @@
 package auth
 
 import (
-	"Horizon/internal/cfg"
-	"Horizon/internal/models"
-	"Horizon/internal/sqlpool"
+	"Horizon/go-api/internal/cfg"
+	"Horizon/go-api/internal/models"
+	"Horizon/go-api/internal/sqlpool"
 	"encoding/json"
 	"errors"
 	"log"

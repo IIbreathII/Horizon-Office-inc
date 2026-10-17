@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"Horizon/internal/cfg"
+	"Horizon/go-api/internal/cfg"
 	"errors"
 	"strings"
 	"time"

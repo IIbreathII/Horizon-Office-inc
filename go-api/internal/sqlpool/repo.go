@@ -1,9 +1,8 @@
 package sqlpool
 
 import (
+	"Horizon/go-api/internal/models"
 	"context"
-
-	"Horizon/internal/models"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   api:
-    build: .
+    build: ./go-api
     ports:
       - "8080:8080"
     env_file:
-      - .env
+      - ./go-api/.env
     restart: unless-stopped

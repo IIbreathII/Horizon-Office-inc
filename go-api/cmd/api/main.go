@@ -1,16 +1,15 @@
 package main
 
 import (
-	"Horizon/internal/auth"
-	"Horizon/internal/cfg"
-	"Horizon/internal/sqlpool"
+	"Horizon/go-api/internal/auth"
+	"Horizon/go-api/internal/cfg"
+	"Horizon/go-api/internal/db"
+	"Horizon/go-api/internal/sqlpool"
 	"context"
 	"errors"
 	"log"
 	"net/http"
 	"time"
-
-	"Horizon/internal/db"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
