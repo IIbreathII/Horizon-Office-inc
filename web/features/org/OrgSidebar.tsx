@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
+import { SignOutButton } from '@/features/auth/SignOutButton';
 import { LineIcon, type LineIconName } from '@/shared/ui/LineIcon';
 import { ACCENT_FILL, PANEL } from '@/shared/ui/surface';
 
@@ -85,6 +86,10 @@ function SidebarView({ pathname }: { pathname: string | null }) {
           <LineIcon name="map" className="size-5 md:size-4" />
           <span className="sr-only md:not-sr-only">Мапа волонтера</span>
         </Link>
+        <SignOutButton
+          className={`${ITEM} cursor-pointer text-neutral-400 hover:bg-white/[0.06] hover:text-white`}
+          labelClassName="sr-only md:not-sr-only"
+        />
       </nav>
     </aside>
   );

@@ -3,7 +3,7 @@
 //
 // Backend: Express API (spec at <backend>/docs). Set NEXT_PUBLIC_API_URL (see .env) to use it; while it is
 // unset, the in-memory mock (mock.ts) answers with the same shapes.
-// Not covered yet: login and registration — tokens come from the separate auth API (forms keep a TODO).
+// Login and registration go to the separate auth API (go-api) — see features/auth/authApi.ts.
 import type { InventoryItem, Me, Organization, Quest, QuestClaim, Reward, RewardSlot, SlotWin } from '@/shared/types';
 import type {
   ClaimDto,
@@ -26,6 +26,8 @@ import { toInventoryItem, toMe, toOrganization, toQuest, toQuestClaim, toReward,
 import { mockApi } from './mock';
 
 const USE_MOCK = !process.env.NEXT_PUBLIC_API_URL;
+/** No backend configured: the in-memory mock answers and nobody needs to sign in. */
+export const IS_MOCK = USE_MOCK;
 
 export const ENDPOINTS = {
   me: '/profiles/me',

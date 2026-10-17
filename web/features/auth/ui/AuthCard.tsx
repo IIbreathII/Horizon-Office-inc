@@ -5,7 +5,8 @@ export function AuthCard({ title, children }: { title: string; children: React.R
   return (
     <div className="grid w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-lg md:min-h-[30rem] md:grid-cols-2">
       <section className="flex flex-col gap-6 px-6 py-8 sm:px-14 sm:py-10">
-        <h1 className="text-center text-2xl font-semibold sm:text-3xl">{title}</h1>
+        {/* not shown in the design; kept as the page heading for screen readers */}
+        <h1 className="sr-only">{title}</h1>
         {children}
       </section>
       <WelcomePanel />

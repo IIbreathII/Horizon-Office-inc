@@ -2,14 +2,19 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { BUTTON_PRIMARY } from '@/shared/ui/PageShell';
+import { authApi } from './authApi';
+import { useAuth } from './AuthProvider';
 import { accountSchema, type AccountValues } from './schemas';
 import { AuthPhoneField, AuthTextField } from './ui/AuthFields';
 
-/** Step 1 of registration: create the account, then choose the role on /register/role. */
+/** Step 1 of registration: create the account (signs in), then choose the role on /register/role. */
 export function AccountRegisterForm() {
   const router = useRouter();
+  const { signIn } = useAuth();
+  const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -17,9 +22,19 @@ export function AccountRegisterForm() {
   } = useForm<AccountValues>({ resolver: zodResolver(accountSchema) });
 
   async function onSubmit(values: AccountValues) {
-    // TODO: POST /auth/register { username, email, contact, password } via shared/api/api.ts (signs in)
-    console.info('register account', values.email);
-    router.push('/register/role');
+    setFormError(null);
+    try {
+      const { token } = await authApi.register({
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        contact: values.contact.replace(/\s/g, ''), // "+380 67 123 45 67" → "+380671234567"
+      });
+      signIn(token);
+      router.push('/register/role');
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Не вдалося створити акаунт');
+    }
   }
 
   return (
@@ -46,8 +61,13 @@ export function AccountRegisterForm() {
         error={errors.confirmPassword?.message}
       />
       <button type="submit" disabled={isSubmitting} className={`mt-3 ${BUTTON_PRIMARY}`}>
-        Створити акаунт
+        {isSubmitting ? 'Створення…' : 'Створити акаунт'}
       </button>
+      {formError && (
+        <p role="alert" className="text-sm text-red-600">
+          {formError}
+        </p>
+      )}
     </form>
   );
 }

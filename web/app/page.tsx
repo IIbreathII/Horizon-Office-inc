@@ -1,6 +1,6 @@
-import { redirect } from 'next/navigation';
+import { HomeRedirect } from '@/features/auth/HomeRedirect';
 
-// TODO: redirect by role (/map for volunteers, /org for organizations) once auth exists (§5)
+// Entry point: signed out → /login, organizations → /org, volunteers → /map.
 export default function Home() {
-  redirect('/map');
+  return <HomeRedirect />;
 }

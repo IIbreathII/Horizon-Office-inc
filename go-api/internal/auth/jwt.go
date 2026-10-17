@@ -1,29 +1,35 @@
 package auth
 
 import (
-	"Horizon/go-api/internal/cfg"
-	"errors"
-	"strings"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func GenerateToken(userID int64, role string) (string, error) {
-	secret := cfg.RequiredEnv("JWT_SECRET")
-	if strings.TrimSpace(secret) == "" {
-		return "", errors.New("JWT_SECRET is required")
-	}
+const tokenTTL = 72 * time.Hour
 
-	secretKey := []byte(secret)
+// TokenIssuer видає JWT у форматі, який перевіряє express-api (src/common/middleware/auth.ts):
+// HS256, sub — id користувача рядком, iss і aud — як JWT_ISSUER / JWT_AUDIENCE там.
+// Ролі в токені немає: організацію express-api визначає за наявністю її профілю.
+type TokenIssuer struct {
+	secret   []byte
+	issuer   string
+	audience string
+}
+
+func NewTokenIssuer(secret, issuer, audience string) *TokenIssuer {
+	return &TokenIssuer{secret: []byte(secret), issuer: issuer, audience: audience}
+}
+
+func (t *TokenIssuer) Issue(userID int64) (string, error) {
 	now := time.Now()
-
-	claims := jwt.MapClaims{
-		"user_id": userID,
-		"role":    role,
-		"iat":     now.Unix(),
-		"exp":     now.Add(72 * time.Hour).Unix(),
+	claims := jwt.RegisteredClaims{
+		Subject:   strconv.FormatInt(userID, 10),
+		Issuer:    t.issuer,
+		Audience:  jwt.ClaimStrings{t.audience},
+		IssuedAt:  jwt.NewNumericDate(now),
+		ExpiresAt: jwt.NewNumericDate(now.Add(tokenTTL)),
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(secretKey)
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(t.secret)
 }

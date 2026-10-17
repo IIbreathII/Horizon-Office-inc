@@ -11,7 +11,7 @@ export function RoleSelect() {
         {ROLE_ORDER.map((role) => {
           const { label, next, image } = ROLES[role];
           return (
-            // TODO: save the role (POST /profiles { role }) before going on, once the endpoint exists
+            // the role is not stored: an organization becomes one by creating its profile on the next step
             <Link
               key={role}
               href={next}

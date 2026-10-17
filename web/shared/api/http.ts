@@ -3,11 +3,13 @@
 // NEXT_PUBLIC_API_URL is the API base: an absolute URL (needs CORS on the backend) or a same-origin
 // path like `/api`, which next.config.ts rewrites to the backend (no CORS needed).
 import type { ErrorBody } from './dto';
+import { getToken } from './token';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
 // Local development only: the backend accepts its DEV_BYPASS_TOKEN as `Authorization: Bearer …`.
-// Real auth (JWT from the auth API) will replace this.
-const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN;
+// Used while nobody is signed in; with it set the app also counts as signed in (see AuthProvider).
+const DEV_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN;
+export const HAS_DEV_TOKEN = Boolean(DEV_TOKEN);
 
 export class ApiError extends Error {
   readonly status: number;
@@ -34,7 +36,8 @@ export async function http<T>(path: string, { method = 'GET', body, query }: Req
 
   const headers: Record<string, string> = {};
   if (body !== undefined) headers['Content-Type'] = 'application/json';
-  if (API_TOKEN) headers.Authorization = `Bearer ${API_TOKEN}`;
+  const token = getToken() ?? DEV_TOKEN;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}${search}`, {
     method,
