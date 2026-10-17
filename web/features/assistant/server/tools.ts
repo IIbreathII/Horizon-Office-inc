@@ -89,7 +89,19 @@ export type ToolContext = {
   mood: MascotMood | null;
   navSuggestion: NavSuggestion | null;
   highlights: string[];
+  /** What the last find_quests returned, best first: the fallback for forgotten cards. */
+  found: Quest[];
 };
+
+/**
+ * The model wrote about the quests it found but did not call show_quest_cards: show the first few
+ * anyway, so the answer never promises quests that are not there.
+ */
+export function ensureCards(ctx: ToolContext) {
+  if (ctx.cards.length === 0 && ctx.found.length > 0) {
+    ctx.cards = ctx.found.slice(0, MAX_CARDS).map((quest) => ({ quest }));
+  }
+}
 
 const kyivDate = (iso: string) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Kyiv' }).format(new Date(iso)); // YYYY-MM-DD
 
@@ -142,6 +154,7 @@ function findQuests(args: Record<string, unknown>, ctx: ToolContext) {
   // soonest first; quests with a flexible time last
   list.sort((a, b) => (a.startsAt ?? '9999').localeCompare(b.startsAt ?? '9999'));
 
+  ctx.found = list.slice(0, MAX_RESULTS);
   const result = {
     total: list.length,
     quests: list.slice(0, MAX_RESULTS).map((q) => summary(q, ctx)),

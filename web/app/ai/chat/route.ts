@@ -6,7 +6,8 @@ import { authenticate } from '@/features/assistant/server/auth';
 import { inferNavigation } from '@/features/assistant/server/navigation';
 import { buildSystemInstruction } from '@/features/assistant/server/prompt';
 import { getCityQuests } from '@/features/assistant/server/quests';
-import { runTool, toolDeclarations, type ToolContext } from '@/features/assistant/server/tools';
+import { ensureCards, runTool, toolDeclarations, type ToolContext } from '@/features/assistant/server/tools';
+import { cleanAnswer } from '@/features/assistant/server/answer';
 import type { AssistantResponse } from '@/features/assistant/types';
 
 // override with GEMINI_MODEL, e.g. gemini-flash-lite-latest (faster, higher free-tier limits)
@@ -100,6 +101,7 @@ export async function POST(request: Request) {
     mood: null,
     navSuggestion: null,
     highlights: [],
+    found: [],
   };
   // Gemini history must start with a user turn
   const firstUser = req.messages.findIndex((m) => m.role === 'user');
@@ -143,7 +145,8 @@ export async function POST(request: Request) {
       if (text && calls.every((call) => UI_TOOLS.has(call.name ?? ''))) break;
     }
 
-    const answer = text.trim() || 'Хм, щось я задумалась. Спробуй запитати інакше 🦉';
+    const answer = cleanAnswer(text) || 'Хм, щось я задумалась. Спробуй запитати інакше 🦉';
+    ensureCards(ctx);
     // asked «де / покажи» but the model forgot the button: name the section ourselves
     const previousAnswer = req.messages.findLast((m) => m.role === 'assistant')?.text ?? '';
     const navSuggestion = ctx.navSuggestion ?? inferNavigation(req.messages[req.messages.length - 1].text, answer, previousAnswer);
