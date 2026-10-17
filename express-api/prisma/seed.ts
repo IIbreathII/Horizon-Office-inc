@@ -1,4 +1,6 @@
-// Тестовые данные для локальной разработки: `npm run db:seed`.
+// Начальные данные: `npm run db:seed` (сам сервис при запуске ничего не создаёт).
+// Только dev-пользователь для байпаса guard и витрина наград. Организации, квесты и волонтёры появляются
+// через приложение: регистрация, профиль организации, создание квеста.
 // Ходит под ролью мигратора (DB_MIGRATOR_*): у роли volunteer_api нет права INSERT в users.
 import dotenv from 'dotenv';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -10,6 +12,27 @@ const { pgConfig } = await import('../src/config/database.js');
 
 const prisma = new PrismaClient({ adapter: new PrismaPg(pgConfig('migrator')) });
 
+// Витрина магазина. Партнёры условные. promocodeTemp: `{code}` заменяется случайной частью
+// при покупке (src/modules/rewards/promocode.ts). Редкость на фронте считается по цене: 100+, 200+, 300+.
+const REWARDS = [
+  // повседневное
+  { rewardsName: 'Кава у подарунок', partnerName: 'Coffee Point', cost: 30, promocodeTemp: 'COFFEE-{code}' },
+  { rewardsName: 'Безкоштовна доставка техніки', partnerName: 'ТехноДім', cost: 60, promocodeTemp: 'TD-SHIP-{code}' },
+  { rewardsName: 'Знижка 20% на книги', partnerName: 'Книгарня «Сторінка»', cost: 80, promocodeTemp: 'BOOK20-{code}' },
+  // рідкісні
+  { rewardsName: 'Квиток у кіно', partnerName: 'Кіно «Промінь»', cost: 120, promocodeTemp: 'CINEMA-{code}' },
+  { rewardsName: 'Сертифікат 200 грн у книгарню', partnerName: 'Книгарня «Сторінка»', cost: 150, promocodeTemp: 'BOOK200-{code}' },
+  { rewardsName: 'Знижка 20% на аксесуари для ПК', partnerName: 'КіберЗона', cost: 180, promocodeTemp: 'CZ20-{code}' },
+  // епічні
+  { rewardsName: 'Тиждень у спортзалі', partnerName: 'FitLife', cost: 200, promocodeTemp: 'FIT7-{code}' },
+  { rewardsName: 'Знижка 15% на навушники', partnerName: 'ТехноДім', cost: 250, promocodeTemp: 'TD-AUDIO15-{code}' },
+  { rewardsName: 'Знижка 25% на велосипед', partnerName: 'ВелоСвіт', cost: 280, promocodeTemp: 'BIKE25-{code}' },
+  // легендарні
+  { rewardsName: 'Знижка 10% на смартфон', partnerName: 'Гаджет Хаус', cost: 350, promocodeTemp: 'GH-PHONE10-{code}' },
+  { rewardsName: 'Знижка 1000 грн на ноутбук', partnerName: 'ТехноДім', cost: 500, promocodeTemp: 'TD-LAPTOP-{code}' },
+  { rewardsName: 'Знижка 15% на ігрову консоль', partnerName: 'КіберЗона', cost: 600, promocodeTemp: 'CZ-CONSOLE15-{code}' },
+];
+
 async function main() {
   // dev-пользователь для байпаса guard
   await prisma.user.upsert({
@@ -18,60 +41,20 @@ async function main() {
     create: { ...DEV_USER },
   });
 
-  const org = await prisma.user.upsert({
-    where: { email: 'org@example.com' },
-    update: {},
-    create: { email: 'org@example.com', username: 'Фонд Добро' },
-  });
-  const anna = await prisma.user.upsert({
-    where: { email: 'anna@example.com' },
-    update: {},
-    create: { email: 'anna@example.com', username: 'anna', xp: 250, balance: 40, curLevel: 2 },
-  });
-  await prisma.user.upsert({
-    where: { email: 'ivan@example.com' },
-    update: {},
-    create: { email: 'ivan@example.com', username: 'ivan', xp: 50, balance: 10 },
-  });
-
-  await prisma.organization.upsert({
-    where: { userId: org.id },
-    update: {},
-    create: {
-      userId: org.id,
-      organizationName: 'Фонд Добро',
-      types: 'ecology',
-      edrpou: '12345678',
-      contact: ['+380000000000', 'org@example.com'],
-      description: 'Экологические инициативы в Днепре',
-    },
-  });
-
-  if ((await prisma.quest.count({ where: { organizationId: org.id } })) === 0) {
-    const base = { organizationId: org.id, category: 'ecology', lat: 48.4647, lng: 35.0462 };
-    await prisma.quest.createMany({
-      data: [
-        { ...base, questName: 'Уборка парка Глобы', maxVolunteers: 20, rewardXp: 100, rewardCoins: 50 },
-        { ...base, questName: 'Посадка деревьев', maxVolunteers: 10, rewardXp: 150, rewardCoins: 70 },
-        { ...base, questName: 'Чистка берега Днепра', maxVolunteers: 15, rewardXp: 120, rewardCoins: 60, status: 'in_progress' },
-        { ...base, questName: 'Сортировка вторсырья', maxVolunteers: 5, rewardXp: 80, rewardCoins: 30, status: 'completed' },
-        { ...base, category: 'animals', questName: 'Выгул собак из приюта', maxVolunteers: 8, rewardXp: 60, rewardCoins: 20 },
-      ],
+  // по одной: повторный запуск не создаёт дублей, новые позиции из списка добавляются
+  let added = 0;
+  for (const reward of REWARDS) {
+    const exists = await prisma.reward.findFirst({
+      where: { rewardsName: reward.rewardsName, partnerName: reward.partnerName },
+      select: { id: true },
     });
-    const first = await prisma.quest.findFirstOrThrow({ where: { organizationId: org.id }, orderBy: { id: 'asc' } });
-    await prisma.questClaim.create({ data: { questId: first.id, userId: anna.id } });
+    if (!exists) {
+      await prisma.reward.create({ data: reward });
+      added += 1;
+    }
   }
 
-  if ((await prisma.reward.count()) === 0) {
-    await prisma.reward.createMany({
-      data: [
-        { rewardsName: 'Кофе', partnerName: 'Coffee Point', cost: 30, promocodeTemp: 'COFFEE-{code}' },
-        { rewardsName: 'Скидка 20% на книги', partnerName: 'Book Store', cost: 80 },
-      ],
-    });
-  }
-
-  console.log('Seed done');
+  console.log(`Seed done: dev user, rewards +${added} (total ${await prisma.reward.count()})`);
 }
 
 main()
