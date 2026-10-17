@@ -24,7 +24,7 @@ export interface ErrorBody {
   error: { code: string; message: string; details?: unknown };
 }
 
-/** GET /organizations (ASSUMED endpoint: not in the API yet) */
+/** GET /organizations */
 export interface OrganizationDto {
   userId: Id;
   organizationName: string;
@@ -84,7 +84,7 @@ export interface QuestDto {
   createdAt: string;
   updatedAt: string;
   organization?: Pick<OrganizationDto, 'userId' | 'organizationName' | 'logo' | 'trustScore'>;
-  /** ASSUMED: the current user's claim — the backend does not return it yet (needed for «Ви записані» / my quests). */
+  /** The current user's claim (null: not applied); only sent with a token. Drives «Ви записані» / my quests. */
   claim?: ClaimDto | null;
   /** ASSUMED: not in the backend schema. */
   startsAt?: string | null;
@@ -105,7 +105,7 @@ export interface QuestInput {
   rewardCoins?: number;
 }
 
-/** ASSUMED: GET /profiles/me — the User model (+ organization if the user owns one). No route yet. */
+/** GET /profiles/me — the User model (+ organization if the user owns one). */
 export interface ProfileDto {
   id: Id;
   email: string;
@@ -115,17 +115,14 @@ export interface ProfileDto {
   status: string;
   xp: number;
   balance: number;
+  /** Level by xp — the backend owns the formula. */
   curLevel: number;
+  /** XP inside the current level: current of required to reach the next one. */
+  levelProgress: { current: number; required: number };
   organization?: Pick<OrganizationDto, 'userId' | 'organizationName'> | null;
 }
 
-/** ASSUMED: POST /profiles. No route yet (organizations use POST /organizations). */
-export interface CompleteProfileRequest {
-  role: 'volunteer' | 'organization';
-  contact: string;
-}
-
-/** ASSUMED: GET /rewards — the Reward model. No route yet. */
+/** GET /rewards — the Reward model. */
 export interface RewardDto {
   id: Id;
   rewardsName: string;
@@ -133,7 +130,7 @@ export interface RewardDto {
   cost: number;
 }
 
-/** ASSUMED: GET /profiles/me/inventory, POST /rewards/{id}/buy — the UserReward model. No route yet. */
+/** GET /profiles/me/inventory, POST /rewards/{id}/buy — the UserReward model. */
 export interface UserRewardDto {
   id: Id;
   userId: Id;
@@ -144,7 +141,7 @@ export interface UserRewardDto {
 }
 
 /**
- * ASSUMED: GET /rewards/slot — the lucky-slot status. No route yet.
+ * GET /rewards/slot — the lucky-slot status.
  * One spin is earned for every `questsPerSpin` completed quests (claims with status `completed`).
  */
 export interface RewardSlotDto {
@@ -153,7 +150,7 @@ export interface RewardSlotDto {
   spinsUsed: number;
 }
 
-/** ASSUMED: POST /rewards/slot/spin — a free random reward with its promo code (409 when no spins are left). */
+/** POST /rewards/slot/spin — a free random reward with its promo code (409 when no spins are left). */
 export interface RewardSlotSpinDto {
   reward: RewardDto;
   userReward: UserRewardDto;

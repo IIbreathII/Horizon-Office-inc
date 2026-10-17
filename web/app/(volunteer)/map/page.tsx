@@ -8,7 +8,7 @@ import { OrganizationPanel } from '@/features/map/ui/OrganizationPanel';
 import { QuestDrawer } from '@/features/map/ui/QuestDrawer';
 import { QuestPanel } from '@/features/map/ui/QuestPanel';
 import { matchesSearch, QuestSearch } from '@/features/map/ui/QuestSearch';
-import { useClaimQuest, useOrganizations, useQuest, useQuests } from '@/shared/api/queries';
+import { useClaimQuest, useOrganizations, useQuest, useQuests, useWithdrawClaim } from '@/shared/api/queries';
 import { CATEGORIES } from '@/shared/categories';
 import { hasCoords, type Category, type Quest } from '@/shared/types';
 import { ICONS } from '@/shared/icons';
@@ -39,6 +39,7 @@ function MapScreen() {
   const { data: allQuests = [] } = useQuests();
   const { data: organizations = [] } = useOrganizations();
   const claim = useClaimQuest();
+  const withdraw = useWithdrawClaim();
   const [selectedCategories, setSelectedCategories] = useState<Category[]>([]); // [] = all
   const [selectedOrgs, setSelectedOrgs] = useState<string[]>([]); // [] = all
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -212,6 +213,9 @@ function MapScreen() {
           onClaim={(id) => claim.mutate(id)}
           pending={claim.isPending}
           claimError={claim.isError && claim.variables === panelQuest?.id ? claim.error.message : null}
+          onWithdraw={(id) => withdraw.mutate(id)}
+          withdrawing={withdraw.isPending}
+          withdrawError={withdraw.isError && withdraw.variables === panelQuest?.id ? withdraw.error.message : null}
         />
       )}
 

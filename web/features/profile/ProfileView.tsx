@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { CopyButton } from '@/features/rewards/CopyButton';
-import { useInventory, useMe, useQuests } from '@/shared/api/queries';
+import { useInventory, useMe, useMyQuests } from '@/shared/api/queries';
 import { CATEGORIES } from '@/shared/categories';
 import { formatDate } from '@/shared/format';
 import { levelTitle } from '@/shared/levels';
@@ -17,7 +17,7 @@ import { XpBar } from './XpBar';
 export function ProfileView() {
   const { data: me, isPending, isError } = useMe();
   const { data: inventory } = useInventory();
-  const { data: quests } = useQuests();
+  const { data: quests } = useMyQuests();
 
   if (isPending) return <ProfileSkeleton />;
   if (isError) return <p className={`${CARD} text-sm text-rose-300`}>Не вдалося завантажити профіль. Оновіть сторінку</p>;

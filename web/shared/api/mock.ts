@@ -1,11 +1,8 @@
 // In-memory mock backend in the exact shapes and rules of the Express API (one handler per endpoint).
-// Used by api.ts while NEXT_PUBLIC_API_URL is not set, and always for endpoints the backend
-// does not have yet (profile, rewards, inventory). Data lives until a full page reload.
-import { levelForXp } from '@/shared/levels';
+// Used by api.ts while NEXT_PUBLIC_API_URL is not set. Data lives until a full page reload.
 import type {
   ClaimDto,
   ClaimWithUserDto,
-  CompleteProfileRequest,
   CursorPage,
   OrganizationDto,
   OrganizationInput,
@@ -29,9 +26,16 @@ const delay = () => new Promise<void>((resolve) => setTimeout(resolve, DELAY_MS)
 const copy = <T,>(value: T): T => structuredClone(value);
 const now = () => new Date().toISOString();
 
+// ---------- levels (same formula as express-api src/modules/claims/level.ts) ----------
+
+/** Level n starts at 100·(n-1)² xp: 1 → 0, 2 → 100, 3 → 400, 4 → 900… */
+const levelStartXp = (level: number) => 100 * (level - 1) ** 2;
+const calcLevel = (xp: number) => Math.floor(Math.sqrt(Math.max(xp, 0) / 100)) + 1;
+
 // ---------- tables ----------
 
-const me: ProfileDto = {
+// levelProgress is computed on read, like the backend does
+const me: Omit<ProfileDto, 'levelProgress'> = {
   id: 1,
   email: 'olena.koval@example.com',
   username: 'Олена Коваль',
@@ -40,7 +44,7 @@ const me: ProfileDto = {
   status: 'active',
   xp: 230,
   balance: 180,
-  curLevel: levelForXp(230),
+  curLevel: calcLevel(230),
   organization: null,
 };
 
@@ -214,8 +218,8 @@ function questDto(row: QuestRow): QuestDto {
       logo: owner.logo,
       trustScore: owner.trustScore,
     },
-    // ASSUMED field (see dto.ts): the real backend does not return it yet
-    claim: claims.find((c) => c.questId === row.id && c.userId === me.id) ?? null,
+    // the current user's claim, as GET /quests and GET /quests/{id} return it for a signed-in user
+    claim:claims.find((c) => c.questId === row.id && c.userId === me.id) ?? null,
   };
 }
 
@@ -286,20 +290,22 @@ const nextId = (rows: { id: number }[]) => Math.max(0, ...rows.map((r) => r.id))
 // ---------- endpoints ----------
 
 export const mockApi = {
-  /** ASSUMED POST /profiles */
-  async completeProfile(req: CompleteProfileRequest): Promise<ProfileDto> {
-    await delay();
-    me.contact = req.contact;
-    return copy(me);
-  },
-
-  /** ASSUMED GET /profiles/me */
+  /** GET /profiles/me */
   async getMe(): Promise<ProfileDto> {
     await delay();
-    return copy(me);
+    const level = calcLevel(me.xp);
+    const start = levelStartXp(level);
+    return copy({ ...me, curLevel: level, levelProgress: { current: me.xp - start, required: levelStartXp(level + 1) - start } });
   },
 
-  /** ASSUMED GET /profiles/me/inventory */
+  /** GET /profiles/me/quests — quests I applied to, any quest status (withdrawn claims left out) */
+  async getMyQuests(): Promise<QuestDto[]> {
+    await delay();
+    const mine = claims.filter((c) => c.userId === me.id && c.status !== 'withdrawn');
+    return copy(mine.map((c) => questDto(findQuest(c.questId))));
+  },
+
+  /** GET /profiles/me/inventory */
   async getInventory(): Promise<UserRewardDto[]> {
     await delay();
     return copy(userRewards.filter((r) => r.userId === me.id).map(userRewardDto));
@@ -467,6 +473,20 @@ export const mockApi = {
     return copy(claim);
   },
 
+  /** DELETE /quests/{id}/claims/me — the volunteer takes back a pending or approved claim */
+  async withdrawClaim(questId: number): Promise<void> {
+    await delay();
+    const row = findQuest(questId);
+    const claim = claims.find((c) => c.questId === questId && c.userId === me.id);
+    if (!claim) throw new ApiError(404, 'Claim not found', 'NOT_FOUND');
+    if (claim.status !== 'pending' && claim.status !== 'approved') {
+      throw new ApiError(409, `Claim in status "${claim.status}" cannot be withdrawn`, 'CONFLICT');
+    }
+    if (claim.status === 'approved') releaseSlot(row);
+    claim.status = 'withdrawn';
+    claim.updatedAt = now();
+  },
+
   /** PATCH /quests/{id}/claims/{claimId} { status } (organization): approve takes a slot, reject frees it */
   async decideClaim(questId: number, claimId: number, status: 'approved' | 'rejected'): Promise<ClaimDto> {
     await delay();
@@ -501,18 +521,18 @@ export const mockApi = {
     if (claim.userId === me.id) {
       me.xp += row.rewardXp;
       me.balance += row.rewardCoins;
-      me.curLevel = levelForXp(me.xp);
+      me.curLevel = calcLevel(me.xp);
     }
     return copy(claim);
   },
 
-  /** ASSUMED GET /rewards */
+  /** GET /rewards */
   async getRewards(): Promise<RewardDto[]> {
     await delay();
     return rewards.map(rewardDto);
   },
 
-  /** ASSUMED POST /rewards/{id}/buy: deducts the balance, issues a promo code */
+  /** POST /rewards/{id}/buy: deducts the balance, issues a promo code */
   async buyReward(id: number): Promise<UserRewardDto> {
     await delay();
     const reward = rewards.find((r) => r.id === id);
@@ -525,7 +545,7 @@ export const mockApi = {
     return copy(userRewardDto(row));
   },
 
-  /** ASSUMED: GET /rewards/slot */
+  /** GET /rewards/slot */
   async getRewardSlot(): Promise<RewardSlotDto> {
     await delay();
     return { completedQuests: myCompletedQuests(), questsPerSpin: QUESTS_PER_SPIN, spinsUsed: slotSpinsUsed };
@@ -538,7 +558,7 @@ export const mockApi = {
     return { completedQuests: myCompletedQuests(), questsPerSpin: QUESTS_PER_SPIN, spinsUsed: slotSpinsUsed };
   },
 
-  /** ASSUMED: POST /rewards/slot/spin — a free random reward, no coins deducted */
+  /** POST /rewards/slot/spin — a free random reward, no coins deducted */
   async spinRewardSlot(): Promise<RewardSlotSpinDto> {
     await delay();
     const available = Math.floor(myCompletedQuests() / QUESTS_PER_SPIN) - slotSpinsUsed;

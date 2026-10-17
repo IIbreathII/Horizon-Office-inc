@@ -1,6 +1,5 @@
 // Backend DTO → frontend domain model. When the API changes, fix the mapping here.
 import { CATEGORIES } from '@/shared/categories';
-import { levelProgress } from '@/shared/levels';
 import type { Category, InventoryItem, Me, Organization, ParticipationStatus, Quest, QuestClaim, Reward, RewardSlot, SlotWin } from '@/shared/types';
 import type {
   ClaimDto,
@@ -104,7 +103,7 @@ export function toMe(dto: ProfileDto): Me {
     xp: dto.xp,
     balance: dto.balance,
     level: dto.curLevel,
-    levelProgress: levelProgress(dto.xp, dto.curLevel),
+    levelProgress: dto.levelProgress,
   };
 }
 

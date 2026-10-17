@@ -12,6 +12,7 @@ import {
   deleteQuest,
   getInventory,
   getMe,
+  getMyQuests,
   getMyOrganization,
   getOrganizationQuests,
   getOrganizations,
@@ -24,6 +25,7 @@ import {
   spinRewardSlot,
   updateOrganization,
   updateQuest,
+  withdrawClaim,
   type QuestArea,
 } from './api';
 
@@ -36,6 +38,8 @@ export const queryKeys = {
   organizations: ['organizations'] as const,
   quests: ['quests'] as const,
   questsIn: (area: QuestArea) => ['quests', area] as const,
+  // under ['quests'], so every quest invalidation refreshes it too
+  myQuests: ['quests', 'mine'] as const,
   quest: (id: string) => ['quest', id] as const,
   rewards: ['rewards'] as const,
   rewardSlot: ['reward-slot'] as const,
@@ -52,6 +56,9 @@ function invalidateQuestData(client: QueryClient) {
 }
 
 export const useMe = () => useQuery({ queryKey: queryKeys.me, queryFn: getMe });
+
+/** My quests in any status — «Мої квести» and the profile (the map feed has open quests only). */
+export const useMyQuests = () => useQuery({ queryKey: queryKeys.myQuests, queryFn: getMyQuests });
 
 export const useInventory = () => useQuery({ queryKey: queryKeys.inventory, queryFn: getInventory });
 
@@ -93,6 +100,19 @@ export const useOrganizationQuests = (orgId: string | undefined) =>
 
 export const useQuestClaims = (questId: string) =>
   useQuery({ queryKey: queryKeys.claims(questId), queryFn: () => getQuestClaims(questId) });
+
+/** «Скасувати заявку»: the volunteer takes back a pending or approved claim. */
+export function useWithdrawClaim() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: withdrawClaim,
+    onSuccess: (_, id) =>
+      Promise.all([
+        client.invalidateQueries({ queryKey: queryKeys.quests }),
+        client.invalidateQueries({ queryKey: queryKeys.quest(id) }),
+      ]),
+  });
+}
 
 export function useSaveOrganization() {
   const client = useQueryClient();

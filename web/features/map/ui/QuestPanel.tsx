@@ -21,10 +21,27 @@ type QuestPanelProps = {
   pending: boolean;
   /** Why the last «Записатися» for the shown quest failed. */
   claimError: string | null;
+  /** «Скасувати заявку» while the claim is pending or approved. */
+  onWithdraw: (id: string) => void;
+  withdrawing: boolean;
+  withdrawError: string | null;
 };
 
 /** Side panel under the search box: quest list by default, quest details when one is selected. */
-export function QuestPanel({ quests, quest, open, onOpenChange, onSelect, onBack, onClaim, pending, claimError }: QuestPanelProps) {
+export function QuestPanel({
+  quests,
+  quest,
+  open,
+  onOpenChange,
+  onSelect,
+  onBack,
+  onClaim,
+  pending,
+  claimError,
+  onWithdraw,
+  withdrawing,
+  withdrawError,
+}: QuestPanelProps) {
   // Esc in the details view goes back to the list (the search input stops its own Esc)
   useEffect(() => {
     if (!open || !quest) return;
@@ -65,7 +82,15 @@ export function QuestPanel({ quests, quest, open, onOpenChange, onSelect, onBack
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {quest ? (
-          <QuestDetails quest={quest} onClaim={onClaim} pending={pending} claimError={claimError} />
+          <QuestDetails
+            quest={quest}
+            onClaim={onClaim}
+            pending={pending}
+            claimError={claimError}
+            onWithdraw={onWithdraw}
+            withdrawing={withdrawing}
+            withdrawError={withdrawError}
+          />
         ) : (
           <QuestList quests={quests} onSelect={onSelect} />
         )}
@@ -108,12 +133,10 @@ function QuestDetails({
   onClaim,
   pending,
   claimError,
-}: {
-  quest: Quest;
-  onClaim: (id: string) => void;
-  pending: boolean;
-  claimError: string | null;
-}) {
+  onWithdraw,
+  withdrawing,
+  withdrawError,
+}: Pick<QuestPanelProps, 'onClaim' | 'pending' | 'claimError' | 'onWithdraw' | 'withdrawing' | 'withdrawError'> & { quest: Quest }) {
   const category = CATEGORIES[quest.category];
   const participation = quest.myParticipation?.status;
   const full = quest.slotsTaken >= quest.slotsTotal;
@@ -153,15 +176,24 @@ function QuestDetails({
         </dd>
       </dl>
 
-      {/* the API has no "leave quest" endpoint, so joining is final */}
       {participation === 'completed' ? (
         <ActionButton disabled className="bg-emerald-500/20 text-emerald-300">
           Виконано ✓
         </ActionButton>
-      ) : participation ? (
-        <ActionButton disabled className="bg-amber-400/20 text-amber-200">
-          Ви записані
+      ) : participation === 'rejected' ? (
+        <ActionButton disabled className="bg-white/10 text-white/50">
+          Заявку відхилено
         </ActionButton>
+      ) : participation ? (
+        // pending or approved: signed up, and the claim can still be taken back
+        <div className="flex flex-col gap-2">
+          <ActionButton disabled className="bg-amber-400/20 text-amber-200">
+            Ви записані
+          </ActionButton>
+          <ActionButton pending={withdrawing} onClick={() => onWithdraw(quest.id)} className="text-white/70 ring-1 ring-white/15 hover:bg-white/10 hover:text-white">
+            Скасувати заявку
+          </ActionButton>
+        </div>
       ) : full ? (
         <ActionButton disabled className="bg-white/10 text-white/50">
           Місць немає
@@ -172,6 +204,7 @@ function QuestDetails({
         </ActionButton>
       )}
       {claimError && <p className="text-xs text-red-300">Не вдалося записатися: {claimError}</p>}
+      {withdrawError && <p className="text-xs text-red-300">Не вдалося скасувати заявку: {withdrawError}</p>}
     </div>
   );
 }

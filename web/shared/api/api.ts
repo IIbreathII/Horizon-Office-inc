@@ -2,20 +2,24 @@
 // domain models (shared/types.ts); they never see URLs, DTOs or mocks.
 //
 // Backend: Express API (spec at <backend>/docs). Set NEXT_PUBLIC_API_URL (see .env) to use it; while it is
-// unset, the in-memory mock (mock.ts) answers with the same shapes. Endpoints the backend does not have
-// yet (profile, rewards, inventory) always use the mock — switch them to http() when the routes appear.
+// unset, the in-memory mock (mock.ts) answers with the same shapes.
+// Not covered yet: login and registration — tokens come from the separate auth API (forms keep a TODO).
 import type { InventoryItem, Me, Organization, Quest, QuestClaim, Reward, RewardSlot, SlotWin } from '@/shared/types';
 import type {
   ClaimDto,
   ClaimWithUserDto,
-  CompleteProfileRequest,
   CursorPage,
   OrganizationDto,
   OrganizationInput,
   PageResult,
+  ProfileDto,
   QuestDto,
   QuestInput,
   QuestStatusChange,
+  RewardDto,
+  RewardSlotDto,
+  RewardSlotSpinDto,
+  UserRewardDto,
 } from './dto';
 import { ApiError, http } from './http';
 import { toInventoryItem, toMe, toOrganization, toQuest, toQuestClaim, toReward, toRewardSlot, toSlotWin } from './mappers';
@@ -23,34 +27,14 @@ import { mockApi } from './mock';
 
 const USE_MOCK = !process.env.NEXT_PUBLIC_API_URL;
 
-// TODO(backend): quests don't include the current user's claim yet (and there is no GET /claims/me),
-// so the claims made from this browser are remembered here and merged into quests.
-// Remove this block once GET /quests and GET /quests/{id} return `claim`.
-const CLAIMS_KEY = 'horizon:my-claims';
-
-function knownClaims(): Record<string, ClaimDto> {
-  try {
-    return JSON.parse(localStorage.getItem(CLAIMS_KEY) ?? '{}') as Record<string, ClaimDto>;
-  } catch {
-    return {};
-  }
-}
-
-function rememberClaim(claim: ClaimDto) {
-  try {
-    localStorage.setItem(CLAIMS_KEY, JSON.stringify({ ...knownClaims(), [claim.questId]: claim }));
-  } catch {
-    // storage unavailable: the claim just won't be shown after a reload
-  }
-}
-
-function withKnownClaim(dto: QuestDto): QuestDto {
-  if (dto.claim !== undefined) return dto;
-  const claim = knownClaims()[dto.id];
-  return claim ? { ...dto, claim } : dto;
-}
-
 export const ENDPOINTS = {
+  me: '/profiles/me',
+  inventory: '/profiles/me/inventory',
+  myQuests: '/profiles/me/quests',
+  rewards: '/rewards',
+  buyReward: (id: string) => `/rewards/${id}/buy`,
+  rewardSlot: '/rewards/slot',
+  spinRewardSlot: '/rewards/slot/spin',
   organizations: '/organizations',
   myOrganization: '/organizations/me',
   organizationQuests: (orgId: string) => `/organizations/${orgId}/quests`,
@@ -58,6 +42,7 @@ export const ENDPOINTS = {
   quest: (id: string) => `/quests/${id}`,
   questStatus: (id: string) => `/quests/${id}/status`,
   claims: (questId: string) => `/quests/${questId}/claims`,
+  myClaim: (questId: string) => `/quests/${questId}/claims/me`,
   claim: (questId: string, claimId: string) => `/quests/${questId}/claims/${claimId}`,
   completeClaim: (questId: string, claimId: string) => `/quests/${questId}/claims/${claimId}/complete`,
 };
@@ -68,21 +53,23 @@ export type QuestArea = { lat: number; lng: number; radius: number };
 const PAGE_LIMIT = 100; // backend maximum
 const MAX_PAGES = 20;
 
-// ---------- profile (no backend route yet → mock) ----------
+// ---------- profile ----------
 
-/** Complete the profile after the first login. TODO: backend route (organizations: POST /organizations). */
-export async function completeProfile(input: CompleteProfileRequest): Promise<Me> {
-  return toMe(await mockApi.completeProfile(input));
-}
-
-/** Profile, balance and XP. TODO: backend route (GET /profiles/me per contract). */
+/** GET /profiles/me — profile, balance and XP. */
 export async function getMe(): Promise<Me> {
-  return toMe(await mockApi.getMe());
+  return toMe(USE_MOCK ? await mockApi.getMe() : await http<ProfileDto>(ENDPOINTS.me));
 }
 
-/** Bought promo codes. TODO: backend route (GET /profiles/me/inventory per contract). */
+/** GET /profiles/me/quests — every quest I applied to, in any quest status (in progress, completed…). */
+export async function getMyQuests(): Promise<Quest[]> {
+  const quests = USE_MOCK ? await mockApi.getMyQuests() : await http<QuestDto[]>(ENDPOINTS.myQuests);
+  return quests.map(toQuest);
+}
+
+/** GET /profiles/me/inventory — bought and won promo codes, newest first. */
 export async function getInventory(): Promise<InventoryItem[]> {
-  return (await mockApi.getInventory()).map(toInventoryItem);
+  const items = USE_MOCK ? await mockApi.getInventory() : await http<UserRewardDto[]>(ENDPOINTS.inventory);
+  return items.map(toInventoryItem);
 }
 
 // ---------- organizations ----------
@@ -113,12 +100,12 @@ export async function getQuests({ lat, lng, radius }: QuestArea): Promise<Quest[
     if (!res.meta.hasMore || !res.meta.nextCursor) break;
     cursor = res.meta.nextCursor;
   }
-  return all.map((dto) => toQuest(withKnownClaim(dto)));
+  return all.map(toQuest);
 }
 
-/** GET /quests/{id} — full quest card. */
+/** GET /quests/{id} — full quest card (with the current user's claim). */
 export async function getQuest(id: string): Promise<Quest> {
-  const dto = USE_MOCK ? await mockApi.getQuest(Number(id)) : withKnownClaim(await http<QuestDto>(ENDPOINTS.quest(id)));
+  const dto = USE_MOCK ? await mockApi.getQuest(Number(id)) : await http<QuestDto>(ENDPOINTS.quest(id));
   return toQuest(dto);
 }
 
@@ -161,13 +148,17 @@ export async function claimQuest(id: string): Promise<void> {
     return;
   }
   try {
-    rememberClaim(await http<ClaimDto>(ENDPOINTS.claims(id), { method: 'POST' }));
+    await http<ClaimDto>(ENDPOINTS.claims(id), { method: 'POST' });
   } catch (error) {
-    // applied earlier (another tab, before a reload…): the user is signed up, so show it as such
+    // applied earlier (another tab…): the refetched quest shows the existing claim
     if (!(error instanceof ApiError && error.status === 409 && /already applied/i.test(error.message))) throw error;
-    const now = new Date().toISOString();
-    rememberClaim({ id: 0, questId: Number(id), userId: 0, status: 'pending', createdAt: now, updatedAt: now });
   }
+}
+
+/** DELETE /quests/{id}/claims/me — «Скасувати заявку»: takes back a pending or approved claim. */
+export async function withdrawClaim(id: string): Promise<void> {
+  if (USE_MOCK) await mockApi.withdrawClaim(Number(id));
+  else await http(ENDPOINTS.myClaim(id), { method: 'DELETE' });
 }
 
 /** GET /quests/{id}/claims — applications to an own quest, with the volunteers (follows all pages). */
@@ -235,21 +226,25 @@ export async function getOrganizationQuests(orgId: string): Promise<Quest[]> {
   return all.map(toQuest);
 }
 
-// ---------- rewards (no backend route yet → mock) ----------
+// ---------- rewards ----------
 
-/** The shop storefront. TODO: backend route (GET /rewards per contract). */
+/** GET /rewards — the shop storefront, cheapest first. */
 export async function getRewards(): Promise<Reward[]> {
-  return (await mockApi.getRewards()).map(toReward);
+  const rewards = USE_MOCK ? await mockApi.getRewards() : await http<RewardDto[]>(ENDPOINTS.rewards);
+  return rewards.map(toReward);
 }
 
-/** Buy a reward: deducts the balance, returns the promo code. TODO: backend route (POST /rewards/{id}/buy). */
+/** POST /rewards/{id}/buy — deducts the balance, returns the promo code; 402 when coins are short. */
 export async function buyReward(id: string): Promise<InventoryItem> {
-  return toInventoryItem(await mockApi.buyReward(Number(id)));
+  const item = USE_MOCK
+    ? await mockApi.buyReward(Number(id))
+    : await http<UserRewardDto>(ENDPOINTS.buyReward(id), { method: 'POST' });
+  return toInventoryItem(item);
 }
 
-/** Lucky slot: completed quests and spins left. TODO: backend route (GET /rewards/slot, ASSUMED in dto.ts). */
+/** GET /rewards/slot — lucky slot: completed quests and spins used. */
 export async function getRewardSlot(): Promise<RewardSlot> {
-  return toRewardSlot(await mockApi.getRewardSlot());
+  return toRewardSlot(USE_MOCK ? await mockApi.getRewardSlot() : await http<RewardSlotDto>(ENDPOINTS.rewardSlot));
 }
 
 // TODO(remove-test-spin): test helpers for the lucky slot, mock only (hidden with a real backend).
@@ -259,7 +254,10 @@ export async function grantTestSpin(): Promise<RewardSlot> {
   return toRewardSlot(await mockApi.grantTestSpin());
 }
 
-/** Spend one spin for a free random reward; 409 when none are left. TODO: backend route (POST /rewards/slot/spin). */
+/** POST /rewards/slot/spin — spend one spin for a free random reward; 409 when none are left. */
 export async function spinRewardSlot(): Promise<SlotWin> {
-  return toSlotWin(await mockApi.spinRewardSlot());
+  const win = USE_MOCK
+    ? await mockApi.spinRewardSlot()
+    : await http<RewardSlotSpinDto>(ENDPOINTS.spinRewardSlot, { method: 'POST' });
+  return toSlotWin(win);
 }

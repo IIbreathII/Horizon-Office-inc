@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuests } from '@/shared/api/queries';
+import { useMyQuests, useQuests } from '@/shared/api/queries';
 import type { Quest } from '@/shared/types';
 import { DISPLAY } from '@/shared/ui/fonts';
 import { LineIcon, type LineIconName } from '@/shared/ui/LineIcon';
@@ -31,7 +31,9 @@ const TABS: Tab[] = [
 ];
 
 export function QuestBoard() {
-  const { data: quests, isPending, isError } = useQuests();
+  const { data: quests, isPending, isError } = useMyQuests();
+  // the lucky slot picks from the open quests on the map, not from mine
+  const { data: openQuests = [] } = useQuests();
   const [activeId, setActiveId] = useState(TABS[0].id);
   const [slotOpen, setSlotOpen] = useState(false);
 
@@ -102,7 +104,7 @@ export function QuestBoard() {
         }`}
       >
         <div className="min-h-0 overflow-hidden">
-          <SlotMachine quests={quests} />
+          <SlotMachine quests={openQuests} />
         </div>
       </div>
 
