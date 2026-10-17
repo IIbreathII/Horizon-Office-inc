@@ -9,7 +9,7 @@ import { AdditiveBlending, DoubleSide, type Group } from 'three';
 
 const BEAM_HEIGHT = 70; // meters
 const BEAM_RADIUS = 6;
-const ARROW_HEIGHT = 34; // arrow center above the ground
+export const ARROW_HEIGHT = 34; // arrow center above the ground
 
 export function QuestPin({ x, z, color }: { x: number; z: number; color: string }) {
   const arrow = useRef<Group>(null);

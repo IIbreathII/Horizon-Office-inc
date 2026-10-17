@@ -19,7 +19,7 @@ const LINKS: { href: string; label: string; icon: string | 'building' }[] = [
 
 /**
  * Floating nav: a vertical rail on the left (sm+, centered, clear of the map's top bar),
- * a horizontal bar at the bottom on phones.
+ * a horizontal bar at the bottom-left on phones (the mascot sits bottom-right).
  */
 export function VolunteerNav() {
   const pathname = usePathname();
@@ -29,7 +29,7 @@ export function VolunteerNav() {
   return (
     <nav
       aria-label="Головне меню"
-      className={`fixed bottom-3 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-full p-1.5 sm:top-1/2 sm:bottom-auto sm:left-3 sm:translate-x-0 sm:-translate-y-1/2 sm:flex-col ${GLASS} ring-1! ring-white/50! shadow-[0_0_20px_-6px_rgba(255,255,255,0.45)]!`}
+      className={`fixed bottom-3 left-3 z-40 flex items-center gap-1 rounded-full p-1.5 sm:top-1/2 sm:bottom-auto sm:-translate-y-1/2 sm:flex-col ${GLASS} ring-1! ring-white/50! shadow-[0_0_20px_-6px_rgba(255,255,255,0.45)]!`}
     >
       {LINKS.map((link) => {
         const active = pathname.startsWith(link.href);

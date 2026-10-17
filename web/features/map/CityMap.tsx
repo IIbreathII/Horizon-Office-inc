@@ -11,7 +11,7 @@ import { GLASS } from '@/shared/ui/glass';
 import { Icon } from '@/shared/ui/Icon';
 import { CAMERA, CITY_BOUNDS, FOCUS, project, unproject } from './lib/projection';
 import { CityChunks } from './scene/CityChunks';
-import { QuestPin } from './scene/QuestPin';
+import { ARROW_HEIGHT, QuestPin } from './scene/QuestPin';
 
 const { ACTION } = CameraControlsImpl;
 
@@ -88,6 +88,12 @@ export function CityMap({ quests, selectedId, panelOpen, onSelect, onClose, pick
         {pick && <PickGround point={pick.point} category={pick.category} showPin={created} onPick={pick.onPick} />}
         {selected && focus && (
           <QuestPin x={focus[0]} z={focus[1]} color={CATEGORIES[selected.category].color} />
+        )}
+        {/* the 3D pin has no DOM node: this empty anchor tells the mascot where it is on screen */}
+        {created && selected && focus && (
+          <Html position={[focus[0], ARROW_HEIGHT, focus[1]]}>
+            <span data-mascot-target aria-hidden className="block size-0" />
+          </Html>
         )}
 
         {created && quests.map((quest) => {
