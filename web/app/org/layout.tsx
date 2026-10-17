@@ -1,3 +1,4 @@
+import { OrgGate } from '@/features/org/OrgGate';
 import { OrgSidebar } from '@/features/org/OrgSidebar';
 import { FONT_VARIABLES } from '@/shared/ui/fonts';
 import { FieldTone } from '@/shared/ui/FormFields';
@@ -13,7 +14,9 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
       {/* phones: bottom padding keeps the content clear of the floating nav bar */}
       <main className="min-w-0 flex-1 px-4 pt-8 pb-28 sm:px-6 md:pt-10 md:pr-8 md:pb-10">
         <div className="mx-auto max-w-6xl">
-          <FieldTone tone="dark">{children}</FieldTone>
+          <FieldTone tone="dark">
+            <OrgGate>{children}</OrgGate>
+          </FieldTone>
         </div>
       </main>
     </div>

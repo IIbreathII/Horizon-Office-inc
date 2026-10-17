@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { ORGANIZATION_TYPES } from '@/features/auth/schemas';
 import { useMyOrganization, useSaveOrganization } from '@/shared/api/queries';
@@ -27,6 +28,7 @@ export function OrganizationProfile() {
 }
 
 function OrganizationForm({ org }: { org: Organization | null }) {
+  const router = useRouter();
   const save = useSaveOrganization();
   const {
     register,
@@ -45,9 +47,10 @@ function OrganizationForm({ org }: { org: Organization | null }) {
   });
 
   async function submit(values: OrganizationProfileValues) {
+    const creating = org === null;
     // the error is shown from save.error
-    await save.mutateAsync({
-      exists: org !== null,
+    const saved = await save.mutateAsync({
+      exists: !creating,
       input: {
         organizationName: values.organizationName,
         types: values.types || null,
@@ -56,15 +59,20 @@ function OrganizationForm({ org }: { org: Organization | null }) {
         description: values.description.trim() || null,
         logo: values.logo || null,
       },
-    }).catch(() => {});
+    }).then(
+      () => true,
+      () => false,
+    );
+    // the new organization unlocks the cabinet (the mutation already refetched the profile): start with its quests
+    if (saved && creating) router.push('/org');
   }
 
   return (
     <form onSubmit={handleSubmit(submit)} noValidate className={`flex max-w-2xl flex-col gap-4 p-6 sm:p-7 ${PANEL}`}>
       {!org && (
         <p className="flex items-center gap-2 rounded-xl bg-amber-300/10 px-4 py-3 text-sm text-amber-200 ring-1 ring-amber-300/40">
-          <LineIcon name="building" className="size-4" />
-          Створіть профіль, щоб публікувати квести.
+          <LineIcon name="building" className="size-4 shrink-0" />
+          Заповніть профіль організації: після цього відкриються «Мої квести» і «Новий квест».
         </p>
       )}
       <TextField label="Назва організації" registration={register('organizationName')} error={errors.organizationName?.message} />

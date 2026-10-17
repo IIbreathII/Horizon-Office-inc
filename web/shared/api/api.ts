@@ -195,7 +195,11 @@ export async function getMyOrganization(): Promise<Organization | null> {
     const dto = USE_MOCK ? await mockApi.getMyOrganization() : await http<OrganizationDto>(ENDPOINTS.myOrganization);
     return toOrganization(dto);
   } catch (error) {
-    if (error instanceof ApiError && error.status === 404) return null;
+    // no profile: the Express API answers 403 «Organization profile required» (its requireOrg guard), the mock 404
+    const noProfile =
+      error instanceof ApiError &&
+      (error.status === 404 || (error.status === 403 && /organization profile required/i.test(error.message)));
+    if (noProfile) return null;
     throw error;
   }
 }

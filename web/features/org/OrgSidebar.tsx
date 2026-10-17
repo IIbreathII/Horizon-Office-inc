@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import { SignOutButton } from '@/features/auth/SignOutButton';
 import { LineIcon, type LineIconName } from '@/shared/ui/LineIcon';
 import { ACCENT_FILL, PANEL } from '@/shared/ui/surface';
+import { ORG_PROFILE_PATH, useNeedsOrgProfile } from './OrgGate';
 
 type NavLink = { href: string; label: string; icon: LineIconName; isActive: (path: string) => boolean };
 
@@ -27,22 +28,24 @@ const LINKS: NavLink[] = [
  * sidebar renders without a highlighted item until the pathname is known.
  */
 export function OrgSidebar() {
+  // no organization profile yet: only the profile tab works (see OrgGate)
+  const locked = useNeedsOrgProfile();
   return (
-    <Suspense fallback={<SidebarView pathname={null} />}>
-      <ActiveSidebar />
+    <Suspense fallback={<SidebarView pathname={null} locked={locked} />}>
+      <ActiveSidebar locked={locked} />
     </Suspense>
   );
 }
 
-function ActiveSidebar() {
-  return <SidebarView pathname={usePathname()} />;
+function ActiveSidebar({ locked }: { locked: boolean }) {
+  return <SidebarView pathname={usePathname()} locked={locked} />;
 }
 
 // Phones: round icon buttons, the label is only for screen readers and the tooltip. md+: icon and label.
 const ITEM =
   'flex size-11 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-amber-300 md:size-auto md:justify-start md:gap-3 md:rounded-xl md:px-3 md:py-2.5 md:text-sm md:whitespace-nowrap';
 
-function SidebarView({ pathname }: { pathname: string | null }) {
+function SidebarView({ pathname, locked }: { pathname: string | null; locked: boolean }) {
   return (
     // phones: a floating bar at the bottom (like the volunteer nav); md+: a sticky sidebar
     <aside className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-center md:pointer-events-auto md:sticky md:top-0 md:bottom-auto md:z-20 md:h-dvh md:w-64 md:shrink-0 md:p-4">
@@ -63,6 +66,15 @@ function SidebarView({ pathname }: { pathname: string | null }) {
 
         {LINKS.map((link) => {
           const active = pathname !== null && link.isActive(pathname);
+          if (locked && link.href !== ORG_PROFILE_PATH) {
+            const hint = `${link.label}: спочатку заповніть профіль організації`;
+            return (
+              <span key={link.href} aria-disabled="true" title={hint} className={`${ITEM} cursor-not-allowed font-medium text-neutral-500`}>
+                <LineIcon name="lock" className="size-5 md:size-4" />
+                <span className="sr-only md:not-sr-only">{link.label}</span>
+              </span>
+            );
+          }
           return (
             <Link
               key={link.href}
