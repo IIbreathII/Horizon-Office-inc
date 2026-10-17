@@ -9,7 +9,8 @@ export default function OrgLayout({ children }: { children: React.ReactNode }) {
     <div className={`relative isolate flex min-h-dvh flex-col bg-[#050505] text-white md:flex-row ${FONT_VARIABLES}`}>
       <PageBackdrop />
       <OrgSidebar />
-      <main className="min-w-0 flex-1 px-4 pt-4 pb-10 sm:px-6 md:pt-10 md:pr-8">
+      {/* phones: bottom padding keeps the content clear of the floating nav bar */}
+      <main className="min-w-0 flex-1 px-4 pt-8 pb-28 sm:px-6 md:pt-10 md:pr-8 md:pb-10">
         <div className="mx-auto max-w-6xl">
           <FieldTone tone="dark">{children}</FieldTone>
         </div>

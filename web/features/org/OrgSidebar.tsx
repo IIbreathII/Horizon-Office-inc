@@ -21,7 +21,7 @@ const LINKS: NavLink[] = [
 ];
 
 /**
- * Organization dashboard navigation: a glass sidebar on desktop, a scrollable bar on phones.
+ * Organization dashboard navigation: a glass sidebar on desktop, a floating icon bar at the bottom on phones.
  * usePathname suspends under dynamic routes (/org/quests/[id]) with cacheComponents, so the
  * sidebar renders without a highlighted item until the pathname is known.
  */
@@ -37,15 +37,23 @@ function ActiveSidebar() {
   return <SidebarView pathname={usePathname()} />;
 }
 
+// Phones: round icon buttons, the label is only for screen readers and the tooltip. md+: icon and label.
+const ITEM =
+  'flex size-11 shrink-0 items-center justify-center rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-amber-300 md:size-auto md:justify-start md:gap-3 md:rounded-xl md:px-3 md:py-2.5 md:text-sm md:whitespace-nowrap';
+
 function SidebarView({ pathname }: { pathname: string | null }) {
   return (
-    <aside className="z-20 shrink-0 p-3 md:sticky md:top-0 md:h-dvh md:w-64 md:p-4">
-      <nav aria-label="Кабінет організації" className={`flex h-full gap-1 overflow-x-auto p-2 md:flex-col md:overflow-visible md:p-3 ${PANEL}`}>
-        <div className="mr-2 flex shrink-0 items-center gap-2.5 px-2 py-1.5 md:mr-0 md:mb-4">
+    // phones: a floating bar at the bottom (like the volunteer nav); md+: a sticky sidebar
+    <aside className="pointer-events-none fixed inset-x-0 bottom-3 z-40 flex justify-center md:pointer-events-auto md:sticky md:top-0 md:bottom-auto md:z-20 md:h-dvh md:w-64 md:shrink-0 md:p-4">
+      <nav
+        aria-label="Кабінет організації"
+        className={`pointer-events-auto flex items-center gap-1 p-1.5 md:h-full md:w-full md:flex-col md:items-stretch md:p-3 ${PANEL} rounded-full! md:rounded-2xl!`}
+      >
+        <div className="mb-4 hidden shrink-0 items-center gap-2.5 px-2 py-1.5 md:flex">
           <span className="flex size-9 items-center justify-center rounded-xl bg-amber-300/15 text-amber-300 ring-1 ring-amber-300/60">
             <LineIcon name="building" className="size-5" />
           </span>
-          <span className="hidden text-sm leading-tight font-semibold text-white md:block">
+          <span className="text-sm leading-tight font-semibold text-white">
             Кабінет
             <br />
             організації
@@ -58,23 +66,24 @@ function SidebarView({ pathname }: { pathname: string | null }) {
             <Link
               key={link.href}
               href={link.href}
+              title={link.label}
               aria-current={active ? 'page' : undefined}
-              className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-amber-300 ${
-                active ? ACCENT_FILL : 'text-neutral-300 hover:bg-white/[0.06] hover:text-white'
-              }`}
+              className={`${ITEM} font-medium ${active ? ACCENT_FILL : 'text-neutral-300 hover:bg-white/[0.06] hover:text-white'}`}
             >
-              <LineIcon name={link.icon} className="size-4" />
-              {link.label}
+              <LineIcon name={link.icon} className="size-5 md:size-4" />
+              <span className="sr-only md:not-sr-only">{link.label}</span>
             </Link>
           );
         })}
 
+        <div className="mx-1 h-6 w-px bg-white/10 md:hidden" aria-hidden />
         <Link
           href="/map"
-          className="flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm whitespace-nowrap text-neutral-400 transition-colors outline-none hover:bg-white/[0.06] hover:text-white focus-visible:ring-2 focus-visible:ring-amber-300 md:mt-auto md:border-t md:border-white/10 md:pt-4"
+          title="Мапа волонтера"
+          className={`${ITEM} text-neutral-400 hover:bg-white/[0.06] hover:text-white md:mt-auto md:border-t md:border-white/10 md:pt-4`}
         >
-          <LineIcon name="map" className="size-4" />
-          Мапа волонтера
+          <LineIcon name="map" className="size-5 md:size-4" />
+          <span className="sr-only md:not-sr-only">Мапа волонтера</span>
         </Link>
       </nav>
     </aside>
